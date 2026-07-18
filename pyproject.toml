@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerplan"
+version = "0.1.1"
+description = "MCP server that makes PLAN.md the operational backbone of agentic development"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "CynaCons" }]
+keywords = ["mcp", "plan", "agents", "PLAN.md", "orchestration"]
+dependencies = [
+  "mcp>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+powerplan = "powerplan.server:run_sync"
+
+[project.urls]
+Homepage = "https://github.com/CynaCons/powerplan"
+Repository = "https://github.com/CynaCons/powerplan"
+Documentation = "https://cynacons.github.io/powerplan/"
+
+[tool.setuptools.packages.find]
+include = ["powerplan*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
