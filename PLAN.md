@@ -41,12 +41,12 @@ heavy deps.
 
 
 ### v0.1.3 — Lifecycle + minimal check_plan
-- [ ] `complete_task(version, task, agent?)` — tick only; no evidence parameter
-- [ ] `reopen_task(version, task, agent?)`
-- [ ] `start_iteration` (header auto-sync), `close_iteration` (reports open tasks; requires `force=true` to close over them; stamps date)
-- [ ] `check_plan` minimal structure lint: version monotonicity, malformed checkboxes/sections, header/active-iteration drift
-- [ ] Dogfood switch: this PLAN.md now operated via powerplan tools only
-- [ ] Smoke test: full iteration lifecycle driven through tools; `check_plan` green
+- [x] `complete_task(version, task, agent?)` — tick only; no evidence parameter
+- [x] `reopen_task(version, task, agent?)`
+- [x] `start_iteration` (header auto-sync), `close_iteration` (reports open tasks; requires `force=true` to close over them; stamps date)
+- [x] `check_plan` minimal structure lint: version monotonicity, malformed checkboxes/sections, header/active-iteration drift
+- [x] Dogfood switch: this PLAN.md now operated via powerplan tools only
+- [x] Smoke test: full iteration lifecycle driven through tools; `check_plan` green
 
 ### v0.1.4 — Packaging + adoption
 - [ ] README agent guide: preferred tools (`get_current_iteration` / `get_iteration` first; avoid full-file reads)
@@ -59,55 +59,55 @@ heavy deps.
 **Goal:** Every tool takes optional `plan_path`; default = walk-up from cwd. Agents can create a plan when none exists.
 
 ### v0.2.0 — Universal `plan_path` contract (audit + harden)
-- [ ] Audit: every MCP tool schema includes optional `plan_path` (read + mutate + lifecycle)
-- [ ] Default discovery: walk-up from cwd to nearest `PLAN.md` when `plan_path` omitted
-- [ ] Explicit `plan_path` may be relative or absolute; resolve against cwd
-- [ ] Mutations: if `plan_path` points at a missing file, error unless tool is `create_plan` (clear message)
-- [ ] Tests: cwd discovery, override path, missing path error shape
-- [ ] Docs: one-line rule — optional plan_path on every call; default = project PLAN.md
+- [x] Audit: every MCP tool schema includes optional `plan_path` (read + mutate + lifecycle)
+- [x] Default discovery: walk-up from cwd to nearest `PLAN.md` when `plan_path` omitted
+- [x] Explicit `plan_path` may be relative or absolute; resolve against cwd
+- [x] Mutations: if `plan_path` points at a missing file, error unless tool is `create_plan` (clear message)
+- [x] Tests: cwd discovery, override path, missing path error shape
+- [x] Docs: one-line rule — optional plan_path on every call; default = project PLAN.md
 
 ### v0.2.1 — `create_plan` bootstrap tool
-- [ ] Tool `create_plan(title, goal?, philosophy?, plan_path?, force?)`
-- [ ] Default path when omitted: `./PLAN.md` in cwd
-- [ ] Writes powernote-style skeleton: H1, Goal/Philosophy, `---`, optional v0.1 shell
-- [ ] Refuse to overwrite existing PLAN.md unless `force=true`
-- [ ] Return JSON: path, created, skeleton summary
-- [ ] Tests: create in temp dir; force overwrite; no-clobber default
-- [ ] Agent guidance: if tools fail with no PLAN.md → create_plan then continue
+- [x] Tool `create_plan(title, goal?, philosophy?, plan_path?, force?)`
+- [x] Default path when omitted: `./PLAN.md` in cwd
+- [x] Writes powernote-style skeleton: H1, Goal/Philosophy, `---`, optional v0.1 shell
+- [x] Refuse to overwrite existing PLAN.md unless `force=true`
+- [x] Return JSON: path, created, skeleton summary
+- [x] Tests: create in temp dir; force overwrite; no-clobber default
+- [x] Agent guidance: if tools fail with no PLAN.md → create_plan then continue
 
 ### v0.2.2 — Lifecycle finish (carry from v0.1.3)
-- [ ] `start_iteration` / `close_iteration` with header honesty
-- [ ] `check_plan` structure lint
-- [ ] Dogfood: operate this PLAN.md only via powerplan tools
+- [x] `start_iteration` / `close_iteration` with header honesty
+- [x] `check_plan` structure lint
+- [x] Dogfood: operate this PLAN.md only via powerplan tools
 
 ## v0.3 — GitHub Pages: plans as the hero (examples + motion)
 
 **Goal:** Site leads with **real plan examples** and a scroll/animated story of an agent calling MCP to grow and update a plan.
 
 ### v0.3.0 — Plan example gallery (static first)
-- [ ] Curate 2–3 example plans as site fixtures (greenfield skeleton, mid-project + Current Status on top, multi-major history mini)
-- [ ] Site section **Examples**: render plans as readable markdown panels (highlighted), not only product prose
-- [ ] Caption each example: when to use it
-- [ ] Link "Open raw" to fixture files in the repo
-- [ ] Mobile-friendly stacked layout
+- [x] Curate 2–3 example plans as site fixtures (greenfield skeleton, mid-project + Current Status on top, multi-major history mini)
+- [x] Site section **Examples**: render plans as readable markdown panels (highlighted), not only product prose
+- [x] Caption each example: when to use it
+- [x] Link "Open raw" to fixture files in the repo
+- [x] Mobile-friendly stacked layout
 
 ### v0.3.1 — Animated MCP story (scroll-driven)
-- [ ] Section **How agents use powerplan** — scrollytelling or stepped animation
-- [ ] Story frames:
+- [x] Section **How agents use powerplan** — scrollytelling or stepped animation
+- [x] Story frames:
   1. No PLAN.md → `create_plan`
   2. Skeleton appears in example pane
   3. Tool chips: `create_major` / `create_iteration` / `add_task`
   4. Plan pane grows (lines animate in)
   5. `complete_task` → checkbox ticks
   6. `get_current_iteration` shows scoped JSON — agent never needed the whole file
-- [ ] Framer Motion / CSS scroll steps; reduced-motion = static storyboard
-- [ ] No multi-MB GIFs; keep Pages lightweight
+- [x] Framer Motion / CSS scroll steps; reduced-motion = static storyboard
+- [x] No multi-MB GIFs; keep Pages lightweight
 
 ### v0.3.2 — Site polish + deploy
-- [ ] Lead narrative with examples; tools table secondary
-- [ ] Integration copy: plan_path + create_plan + dual MCP with PowerSpawn
-- [ ] Deploy Pages; visual QA desktop + mobile
-- [ ] `npm run build` green; CI site job passes
+- [x] Lead narrative with examples; tools table secondary
+- [x] Integration copy: plan_path + create_plan + dual MCP with PowerSpawn
+- [x] Deploy Pages; visual QA desktop + mobile
+- [x] `npm run build` green; CI site job passes
 
 ## v0.4 — PowerSpawn coordination link (backlog)
 - [ ] Default `agent` from PowerSpawn spawn id when tools run under a worker

@@ -3,15 +3,15 @@ import { useInView } from 'framer-motion'
 import { useRef } from 'react'
 
 const tools = [
-  { name: 'show_plan', kind: 'Read', desc: 'ASCII overview of majors + iterations with [done/total] progress.' },
-  { name: 'show_current_iteration', kind: 'Read', desc: 'Detail of the active / first-open iteration (goal, tasks).' },
-  { name: 'get_iteration', kind: 'Read', desc: 'Structured JSON for one version (goal, tasks, status, progress).' },
-  { name: 'list_iterations', kind: 'Read', desc: 'Filter open | complete | all.' },
-  { name: 'get_backlog', kind: 'Read', desc: 'Backlog section items.' },
-  { name: 'find_task', kind: 'Read', desc: 'Substring search across task lines.' },
-  { name: 'create_iteration', kind: 'Soon', desc: 'New ### vX.Y.Z section; version monotonicity enforced (v0.1.2).' },
-  { name: 'complete_task', kind: 'Soon', desc: 'Tick a checkbox; optional [agent: id] tag (v0.1.3).' },
-  { name: 'check_plan', kind: 'Soon', desc: 'Structure lint: versions, checkboxes, header drift (v0.1.3).' },
+  { name: 'create_plan', kind: 'Bootstrap', desc: 'Create PLAN.md when missing (title, goal, optional plan_path, force).' },
+  { name: 'get_current_iteration', kind: 'Agent', desc: 'JSON for the current iteration — preferred agent entry point.' },
+  { name: 'get_iteration', kind: 'Agent', desc: 'JSON for one version (tasks, progress) without full-file read.' },
+  { name: 'list_iterations / find_task', kind: 'Agent', desc: 'Navigate open work without loading all of PLAN.md.' },
+  { name: 'create_major / create_iteration / add_task', kind: 'Mutate', desc: 'Grow the plan surgically (powernote-style headers).' },
+  { name: 'complete_task / reopen_task', kind: 'Mutate', desc: 'Tick checkboxes; optional [agent: id] tags.' },
+  { name: 'start_iteration / close_iteration', kind: 'Lifecycle', desc: 'Mark ACTIVE/current or COMPLETE (force if open tasks).' },
+  { name: 'check_plan', kind: 'Lint', desc: 'Structure issues: duplicates, multi-current, complete-with-open.' },
+  { name: 'show_plan', kind: 'Skim', desc: 'Compact index only — not a full dump; agents prefer get_* tools.' },
 ]
 
 export function Tools() {
@@ -28,8 +28,8 @@ export function Tools() {
         >
           <h2 className="text-4xl font-bold text-white mb-3">MCP tool surface</h2>
           <p className="text-slate-400">
-            Server name <code className="text-sky-300 mono">powerplan</code> — every tool accepts optional{' '}
-            <code className="text-sky-300 mono">plan_path</code>.
+            Server <code className="text-sky-300 mono">powerplan</code> — every tool accepts optional{' '}
+            <code className="text-sky-300 mono">plan_path</code> (default: walk-up from cwd).
           </p>
         </motion.div>
 
@@ -38,7 +38,7 @@ export function Tools() {
             <thead>
               <tr className="border-b border-slate-800 text-slate-400">
                 <th className="px-4 py-3 font-medium">Tool</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Kind</th>
                 <th className="px-4 py-3 font-medium">What it does</th>
               </tr>
             </thead>
@@ -55,9 +55,11 @@ export function Tools() {
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-0.5 rounded border ${
-                        t.kind === 'Read'
+                        t.kind === 'Agent' || t.kind === 'Bootstrap'
                           ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-200 border-amber-500/30'
+                          : t.kind === 'Mutate' || t.kind === 'Lifecycle'
+                            ? 'bg-sky-500/10 text-sky-300 border-sky-500/30'
+                            : 'bg-slate-500/10 text-slate-300 border-slate-500/30'
                       }`}
                     >
                       {t.kind}

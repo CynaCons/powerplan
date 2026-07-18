@@ -18,7 +18,7 @@ from .plan_parser import parse_plan, parse_plan_file
 from .plan_writer import write_plan, write_plan_file
 from .discovery import find_plan_md, load_plan
 
-__version__ = "0.1.2"
+__version__ = "0.2.2"
 __all__ = [
     "BacklogItem",
     "BacklogSection",

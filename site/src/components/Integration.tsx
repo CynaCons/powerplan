@@ -15,6 +15,18 @@ const snippets = {
     }
   }
 }`,
+  usage: `# Every tool accepts optional plan_path (default = walk-up from cwd)
+
+create_plan(title="My App", goal="Ship MVP")
+  → writes ./PLAN.md if missing
+
+get_current_iteration()
+  → scoped JSON for what to work on now
+
+add_task(version="v0.1.0", text="Wire auth", plan_path="docs/PLAN.md")
+  → explicit path when not at repo root
+
+complete_task(version="v0.1.0", task="Wire auth", agent="grok-4.5")`,
   dual: `{
   "mcpServers": {
     "powerplan": {
@@ -32,11 +44,9 @@ command = "python"
 args = ["-m", "powerplan"]
 env = { PYTHONUNBUFFERED = "1" }
 enabled = true`,
-  submodule: `# Inside a PowerSpawn-based project
+  submodule: `# PowerSpawn vendors powerplan as a submodule
 git submodule update --init --recursive
-
-# powerplan lives at powerspawn/powerplan (submodule)
-# Register BOTH MCP servers — they do not merge automatically`,
+# Register BOTH MCP servers — they do not merge`,
 }
 
 function Block({ title, code }: { title: string; code: string }) {
@@ -86,6 +96,7 @@ export function Integration() {
 
         <div className="space-y-6">
           <Block title="Project .mcp.json (Claude Code & friends)" code={snippets.mcp} />
+          <Block title="Agent flow: create_plan + plan_path" code={snippets.usage} />
           <Block title="With PowerSpawn (peer MCP servers)" code={snippets.dual} />
           <Block title="Grok config.toml" code={snippets.grok} />
           <Block title="PowerSpawn submodule init" code={snippets.submodule} />

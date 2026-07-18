@@ -96,16 +96,16 @@ export function Hero() {
             View on GitHub
           </a>
           <a
-            href="#how"
+            href="#examples"
             className="px-6 py-3 rounded-lg border border-slate-600 hover:border-slate-400 font-semibold transition-colors"
           >
-            How it works
+            Example plans
           </a>
           <a
-            href="#integrate"
+            href="#story"
             className="px-6 py-3 rounded-lg border border-slate-700 text-slate-300 hover:border-slate-500 font-semibold transition-colors"
           >
-            Integrate
+            Agent story
           </a>
         </motion.div>
 

@@ -346,7 +346,6 @@ def load_plan_for_mutation(plan_path: Union[str, Path]) -> Plan:
     path = Path(plan_path)
     if path.is_file():
         return parse_plan_file(path)
-    # create empty file shell
     plan = empty_plan()
     plan.path = path
     return plan
@@ -360,15 +359,205 @@ def save_plan(plan: Plan, plan_path: Optional[Union[str, Path]] = None) -> Path:
 def mutate_and_save(
     plan_path: Union[str, Path],
     mutator,
+    *,
+    allow_create: bool = False,
 ) -> Plan:
-    """Load → mutator(plan) → save under file lock."""
+    """
+    Load → mutator(plan) → save under file lock.
+
+    If the file is missing and ``allow_create`` is False, raise FileNotFoundError
+    (callers should use create_plan). When True, start from empty_plan().
+    """
     path = Path(plan_path)
     with _file_lock:
         if path.is_file():
             plan = parse_plan_file(path)
-        else:
+        elif allow_create:
             plan = empty_plan()
             plan.path = path
+        else:
+            raise FileNotFoundError(
+                f"No PLAN.md at {path}. Use create_plan(plan_path=...) first."
+            )
         mutator(plan)
         write_plan_file(plan, path)
         return plan
+
+
+def create_plan(
+    *,
+    title: str,
+    goal: Optional[str] = None,
+    philosophy: Optional[str] = None,
+    plan_path: Union[str, Path],
+    force: bool = False,
+    seed_major: bool = True,
+) -> Plan:
+    """
+    Bootstrap a new powernote-style PLAN.md.
+
+    Refuses to overwrite an existing file unless ``force=True``.
+    """
+    path = Path(plan_path)
+    if path.is_file() and not force:
+        raise FileExistsError(
+            f"Plan already exists: {path}. Pass force=true to overwrite."
+        )
+    if not path.parent.is_dir():
+        raise FileNotFoundError(f"Parent directory does not exist: {path.parent}")
+
+    title = (title or "Implementation Plan").strip()
+    lines = [f"# {title}\n", "\n"]
+    if goal:
+        lines.append(f"**Goal:** {goal.strip()}\n")
+        lines.append("\n")
+    if philosophy:
+        lines.append(f"**Philosophy:** {philosophy.strip()}\n")
+        lines.append("\n")
+    lines.append("---\n")
+    lines.append("\n")
+
+    plan = Plan(title=title, path=path, blocks=[ProseBlock(raw="".join(lines))])
+    if seed_major:
+        create_major(plan, "v0.1", "Foundation", description="First iteration group")
+        create_iteration(
+            plan,
+            "v0.1.0",
+            "Bootstrap",
+            major="v0.1",
+            goal=goal or "Stand up the project",
+        )
+        add_task(plan, "v0.1.0", "Define first tasks", done=False)
+
+    with _file_lock:
+        write_plan_file(plan, path)
+    return plan
+
+
+def _set_iteration_status(it: Iteration, status: Optional[str]) -> None:
+    """Update status field and rewrite header_raw in managed style."""
+    it.status = status
+    # Preserve version/title; rebuild header with optional (STATUS)
+    it.header_raw = format_iteration_header(it.version, it.title, status=status)
+
+
+def start_iteration(plan: Plan, version: str) -> Iteration:
+    """Mark iteration ACTIVE (current work). Clears ACTIVE from siblings."""
+    it = plan.find_iteration(version)
+    if it is None:
+        raise ValueError(f"Iteration not found: {version}")
+    for other in plan.all_iterations():
+        if other is it:
+            continue
+        st = (other.status or "").upper()
+        if st in ("ACTIVE", "IN PROGRESS", "WIP", "CURRENT", "NEXT"):
+            _set_iteration_status(other, None)
+        # strip (current) from titles of others
+        if re.search(r"\s*\(current\)\s*$", other.title, re.I):
+            other.title = re.sub(r"\s*\(current\)\s*$", "", other.title, flags=re.I).strip()
+            _set_iteration_status(other, other.status)
+    _set_iteration_status(it, "ACTIVE")
+    if not re.search(r"\bcurrent\b", it.title, re.I):
+        it.title = f"{it.title} (current)"
+        _set_iteration_status(it, "ACTIVE")
+    return it
+
+
+def close_iteration(
+    plan: Plan, version: str, *, force: bool = False, stamp: Optional[str] = None
+) -> Iteration:
+    """
+    Mark iteration COMPLETE. If open tasks remain, requires force=True.
+    Optional stamp appended to title (e.g. date).
+    """
+    it = plan.find_iteration(version)
+    if it is None:
+        raise ValueError(f"Iteration not found: {version}")
+    open_n = sum(1 for t in it.tasks if not t.done)
+    if open_n and not force:
+        raise ValueError(
+            f"Iteration {version} has {open_n} open task(s). "
+            "Pass force=true to close anyway."
+        )
+    # strip (current) from title
+    it.title = re.sub(r"\s*\(current\)\s*$", "", it.title, flags=re.I).strip()
+    if stamp:
+        stamp = stamp.strip()
+        if stamp and stamp not in it.title:
+            it.title = f"{it.title} ({stamp})"
+    _set_iteration_status(it, "COMPLETE")
+    return it
+
+
+def check_plan(plan: Plan) -> dict:
+    """
+    Minimal structure lint. Returns dict with ok, issues[], summary.
+    """
+    issues: List[dict] = []
+    iterations = plan.all_iterations()
+    versions = [it.version for it in iterations]
+
+    # Duplicate versions
+    seen = set()
+    for v in versions:
+        key = _norm_version(v)
+        if key in seen:
+            issues.append(
+                {"code": "duplicate_version", "version": v, "message": f"Duplicate iteration version {v}"}
+            )
+        seen.add(key)
+
+    # Malformed: empty titles
+    for it in iterations:
+        if not (it.title or "").strip():
+            issues.append(
+                {
+                    "code": "empty_title",
+                    "version": it.version,
+                    "message": f"Iteration {it.version} has empty title",
+                }
+            )
+
+    # Multiple ACTIVE / current markers
+    active = [
+        it
+        for it in iterations
+        if (it.status or "").upper() in ("ACTIVE", "IN PROGRESS", "WIP", "CURRENT")
+        or re.search(r"\bcurrent\b", it.title, re.I)
+    ]
+    if len(active) > 1:
+        issues.append(
+            {
+                "code": "multiple_current",
+                "versions": [a.version for a in active],
+                "message": "Multiple iterations marked current/ACTIVE",
+            }
+        )
+
+    # COMPLETE with open tasks
+    for it in iterations:
+        st = (it.status or "").upper()
+        if "COMPLETE" in st or "CLOSED" in st or "DONE" in st:
+            open_n = sum(1 for t in it.tasks if not t.done)
+            if open_n:
+                issues.append(
+                    {
+                        "code": "complete_with_open_tasks",
+                        "version": it.version,
+                        "open": open_n,
+                        "message": f"{it.version} marked complete but has {open_n} open task(s)",
+                    }
+                )
+
+    cur = plan.current_iteration()
+    return {
+        "ok": len(issues) == 0,
+        "issue_count": len(issues),
+        "issues": issues,
+        "iteration_count": len(iterations),
+        "current": cur.version if cur else None,
+        "task_progress": {
+            "done": sum(it.done_count for it in iterations),
+            "total": sum(it.total_count for it in iterations),
+        },
+    }

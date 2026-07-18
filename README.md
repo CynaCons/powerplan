@@ -10,7 +10,7 @@ header truthful — without freeform file thrash.
 | | |
 |---|---|
 | **Server name** | `powerplan` |
-| **Status** | v0.1.1 — read tools shipped; mutations next ([PLAN.md](PLAN.md)) |
+| **Status** | v0.2.2 — create_plan, mutations, lifecycle, check_plan ([PLAN.md](PLAN.md)) |
 | **PRD** | [PRD.md](PRD.md) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional submodule) |
@@ -104,21 +104,25 @@ Register **both** as separate servers — nesting in a monorepo does not merge M
 
 ---
 
-## Tools (v0.1.1)
+## Tools (v0.2.2)
+
+**Every tool accepts optional `plan_path`** (relative or absolute). Default: walk
+up from cwd to the nearest `PLAN.md`.
 
 | Tool | Behavior |
 |------|----------|
-| `show_plan` | ASCII overview of majors + iterations with progress |
-| `show_current_iteration` | Detail of the active / first-open iteration |
-| `get_iteration` | Structured JSON for one version |
-| `list_iterations` | Filter: open / complete / all |
-| `get_backlog` | Backlog items |
-| `find_task` | Substring search over tasks |
+| `create_plan` | Bootstrap `./PLAN.md` (or `plan_path`) when missing; `force` to overwrite |
+| `get_current_iteration` | **Preferred for agents** — scoped JSON for current work |
+| `get_iteration` | JSON for one version (tasks, progress) |
+| `list_iterations` / `find_task` / `get_backlog` | Navigate without full-file reads |
+| `create_major` / `create_iteration` / `add_task` / … | Surgical mutations |
+| `complete_task` / `reopen_task` | Checkbox updates; optional `[agent: id]` |
+| `start_iteration` / `close_iteration` | ACTIVE/current vs COMPLETE lifecycle |
+| `check_plan` | Structure lint |
+| `show_plan` / `show_current_iteration` | Compact human skim (not a full dump) |
 
-Every tool accepts optional `plan_path`; otherwise powerplan walks up from cwd
-to the nearest `PLAN.md`.
-
-Mutations (`create_iteration`, `complete_task`, …) land in **v0.1.2+**.
+Agent rule: prefer `get_current_iteration` / `get_iteration` over reading all of PLAN.md.
+If no plan exists → `create_plan` first.
 
 ---
 
