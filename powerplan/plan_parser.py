@@ -279,6 +279,14 @@ def parse_plan(text: str, path: Optional[Union[str, Path]] = None) -> Plan:
             blocks.append(current_backlog)
             continue
 
+        # Unversioned ## headers (e.g. "## Planned (Not Yet Shipped)",
+        # "## Current Status") are NOT majors. Close open containers so their
+        # following checkbox/bullet lines stay top-level prose rather than
+        # being absorbed into the previous iteration as fake tasks.
+        if content.startswith("## ") and not m_major:
+            attach_top_level_prose_line(line)
+            continue
+
         # --- tasks (only inside an iteration; else prose for round-trip) ---
         m_task = _RE_TASK.match(content)
         if m_task and current_iteration is not None and current_backlog is None:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerplan"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP server that makes PLAN.md the operational backbone of agentic development"
 readme = "README.md"
 requires-python = ">=3.10"

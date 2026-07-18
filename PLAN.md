@@ -31,11 +31,14 @@ heavy deps.
 - [x] Smoke test: outputs verified against powerplanner + powernote plans (pytest green)
 
 ### v0.1.2 — Mutation tools + optional agent tags + surgical writer
-- [ ] `create_iteration` (version monotonicity enforced), `set_iteration_goal`
-- [ ] `add_task` / `update_task` / `remove_task` / `add_to_backlog` / `defer_task(reason?)`
-- [ ] Optional `agent` on mutation tools → trailing tag `[agent: <id>]` on touched lines
-- [ ] Surgical writes: only touched lines change; file lock around read-modify-write
-- [ ] Smoke test: mutation batch on a copy of a reference PLAN.md; diff shows only intended lines
+- [x] `create_major` / `create_iteration` (version uniqueness), `set_iteration_goal`
+- [x] `add_task` / `complete_task` / `reopen_task` / `add_to_backlog` / `append_prose`
+- [x] Optional `agent` on mutation tools → trailing tag `[agent: <id>]` on touched lines
+- [x] Surgical writes + file lock (`mutate_and_save`); powernote-style `—` headers
+- [x] Parser: unversioned `##` sections (Planned / Current Status) no longer swallow prior iteration tasks
+- [x] Smoke: recreate PowerNote PLAN.md via mutations → `temp.md` byte-identical (CRLF-preserving)
+- [ ] `update_task` / `remove_task` / `defer_task(reason?)` (remaining CRUD niceties)
+
 
 ### v0.1.3 — Lifecycle + minimal check_plan
 - [ ] `complete_task(version, task, agent?)` — tick only; no evidence parameter
