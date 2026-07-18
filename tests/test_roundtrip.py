@@ -77,9 +77,10 @@ def test_powerplanner_model_basics():
     backlog = plan.all_backlog_items()
     assert len(backlog) >= 3
 
-    # show_plan produces non-empty ASCII (iterations only; phase prose omitted)
+    # show_plan is a compact index: counts + CURRENT, not a full dump
     ascii_view = show_plan(plan)
-    assert "v2.3.2" in ascii_view
+    assert "CURRENT ITERATION" in ascii_view
+    assert "tasks:" in ascii_view
     assert "[" in ascii_view and "/" in ascii_view
 
 
@@ -104,8 +105,8 @@ def test_powernote_model_basics():
     assert len(backlog) >= 3
 
     ascii_view = show_plan(plan)
-    assert "v0.1" in ascii_view
-    assert "v0.1.0" in ascii_view
+    assert "CURRENT ITERATION" in ascii_view
+    assert "iterations:" in ascii_view
 
 
 def test_goal_extraction_powerplanner():

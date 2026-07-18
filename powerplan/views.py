@@ -8,7 +8,6 @@ from typing import Any, List, Optional
 from .plan_model import (
     BacklogSection,
     Iteration,
-    MajorSection,
     Plan,
     ProseBlock,
 )
@@ -29,7 +28,13 @@ def _status_tag(it: Iteration) -> str:
 
 
 def show_plan(plan: Plan) -> str:
-    """ASCII overview of majors / iterations with progress."""
+    """
+    Compact human overview of the whole plan.
+
+    Agents should prefer ``get_current_iteration`` / ``get_iteration`` /
+    ``list_iterations`` over reading this — those return scoped JSON without
+    loading the entire PLAN.md into context.
+    """
     lines: List[str] = []
     title = plan.title or (plan.path.name if plan.path else "PLAN.md")
     lines.append(title)
@@ -48,47 +53,48 @@ def show_plan(plan: Plan) -> str:
             f"(complete: {done_iters}, open: {open_iters})  "
             f"tasks: [{task_done}/{task_total}]"
         )
-    lines.append("")
-
-    def emit_iteration(it: Iteration, indent: str = "  ") -> None:
-        mark = "x" if it.is_complete else " "
-        lines.append(
-            f"{indent}[{mark}] {_progress(it)} {it.version} - {it.title}{_status_tag(it)}"
-        )
-
-    for block in plan.blocks:
-        if isinstance(block, MajorSection):
-            lines.append(f"## {block.version} — {block.title}")
-            if block.description:
-                lines.append(f"  > {block.description}")
-            for child in block.children:
-                if isinstance(child, Iteration):
-                    emit_iteration(child, "  ")
-            lines.append("")
-        elif isinstance(block, Iteration):
-            emit_iteration(block, "")
-        elif isinstance(block, BacklogSection):
-            n_items = sum(
-                1 for i in block.items if not isinstance(i, ProseBlock)
-            )
-            lines.append(f"# Backlog: {block.title} ({n_items} items)")
-            lines.append("")
-        # ProseBlock (incl. phase-like headers): omitted from overview
 
     current = plan.current_iteration()
     if current:
+        lines.append("")
+        lines.append("CURRENT ITERATION")
         lines.append(
-            f"current: {current.version} - {current.title} {_progress(current)}"
+            f"  {current.version} — {current.title} {_progress(current)}"
+            f"{_status_tag(current)}"
         )
+        if current.goal:
+            lines.append(f"  goal: {current.goal}")
+        lines.append("  (use get_current_iteration / get_iteration for full task list)")
+
+    lines.append("")
+    lines.append(
+        "Note: show_plan is a skimmable index. Agents: prefer get_current_iteration "
+        "or get_iteration(version) instead of reading all of PLAN.md."
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 
 def show_current_iteration(plan: Plan) -> str:
-    """ASCII detail of the active / first-open iteration."""
+    """ASCII detail of the resolved *current* iteration (what to work on now)."""
     it = plan.current_iteration()
     if it is None:
         return "No iterations found in plan.\n"
-    return _format_iteration_detail(it, plan)
+    lines: List[str] = []
+    lines.append("CURRENT ITERATION")
+    lines.append("=" * 17)
+    lines.append("")
+    detail = _format_iteration_detail(it, plan)
+    return "\n".join(lines) + detail
+
+
+def get_current_iteration_view(plan: Plan) -> str:
+    """Structured JSON for the resolved current iteration (agent-oriented)."""
+    it = plan.current_iteration()
+    if it is None:
+        return json.dumps({"current": None, "error": "No iterations found"}, indent=2) + "\n"
+    payload = it.to_dict()
+    payload["is_current"] = True
+    return json.dumps({"current": payload}, indent=2) + "\n"
 
 
 def show_iteration(plan: Plan, version: str) -> str:

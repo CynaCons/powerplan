@@ -64,3 +64,53 @@ def test_recreate_powernote_byte_identical():
     src = source.read_text(encoding="utf-8")
     # Normalize newlines for comparison (Windows may use CRLF on disk)
     assert text.replace("\r\n", "\n") == src.replace("\r\n", "\n")
+
+
+def test_current_iteration_prefers_current_marker():
+    from powerplan.plan_parser import parse_plan
+
+    md = """# Demo
+
+## v0.1 — A
+### v0.1.0 — Old open
+- [ ] leftover planned work
+
+## Current Status
+
+| Iteration | Status |
+|-----------|--------|
+| v0.1.0 | shipped |
+| v0.2.0 | **current** — active work |
+
+## v0.2 — B
+### v0.2.0 — Real current (current)
+- [ ] do the thing
+"""
+    plan = parse_plan(md)
+    cur = plan.current_iteration()
+    assert cur is not None
+    assert cur.version == "v0.2.0"
+    assert "current" in cur.title.lower() or cur.is_open
+
+
+def test_current_from_status_table_without_title_marker():
+    from powerplan.plan_parser import parse_plan
+
+    md = """# Demo
+
+## v0.1 — A
+### v0.1.0 — Planned later
+- [ ] not current
+
+## Current Status
+| v0.1.0 | done |
+| v0.2.0 | **current** — focus |
+
+## v0.2 — B
+### v0.2.0 — Focus work
+- [ ] ship it
+"""
+    plan = parse_plan(md)
+    cur = plan.current_iteration()
+    assert cur is not None
+    assert cur.version == "v0.2.0"

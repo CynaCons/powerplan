@@ -4,8 +4,8 @@ powerplan MCP server v0.1.2
 Standalone MCP that makes PLAN.md the operational backbone of agentic
 development. Server name: ``powerplan``.
 
-Read tools: show_plan, show_current_iteration, get_iteration, list_iterations,
-get_backlog, find_task.
+Read tools (agent-oriented): get_current_iteration, get_iteration, list_iterations,
+find_task, get_backlog. Optional skim: show_plan, show_current_iteration.
 
 Mutation tools (v0.1.2): create_major, create_iteration, set_iteration_goal,
 add_task, complete_task, reopen_task, add_to_backlog, append_prose.
@@ -31,6 +31,7 @@ from powerplan.plan_writer import write_plan_file
 from powerplan.views import (
     find_task_view,
     get_backlog_view,
+    get_current_iteration_view,
     get_iteration_view,
     list_iterations_view,
     show_current_iteration,
@@ -114,18 +115,20 @@ def _err(msg: str, **extra: Any) -> list:
 async def list_tools() -> list:
     return [
         Tool(
-            name="show_plan",
-            description="ASCII overview of majors + iterations with [done/total] progress.",
-            inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
-        ),
-        Tool(
-            name="show_current_iteration",
-            description="ASCII detail of the active/first-open iteration.",
+            name="get_current_iteration",
+            description=(
+                "Structured JSON for the *current* iteration (what to work on now). "
+                "Resolves (current) markers / Current Status table / first open work. "
+                "Preferred entry point for agents — avoids reading all of PLAN.md."
+            ),
             inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
         ),
         Tool(
             name="get_iteration",
-            description="Structured JSON for one iteration.",
+            description=(
+                "Structured JSON for one iteration by version (goal, tasks, progress). "
+                "Use this (or get_current_iteration) instead of reading the whole PLAN.md."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["version"],
@@ -134,6 +137,23 @@ async def list_tools() -> list:
                     **_PLAN_PATH_PROP,
                 },
             },
+        ),
+        Tool(
+            name="show_current_iteration",
+            description=(
+                "ASCII view of the resolved *current* iteration (same resolution as "
+                "get_current_iteration). Human-readable; agents should prefer the JSON tool."
+            ),
+            inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
+        ),
+        Tool(
+            name="show_plan",
+            description=(
+                "Optional compact index of the plan + which iteration is current. "
+                "Usually unnecessary for agents (they can get_current_iteration / "
+                "get_iteration). Prefer scoped tools over reading full PLAN.md."
+            ),
+            inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
         ),
         Tool(
             name="list_iterations",
@@ -295,15 +315,17 @@ async def list_tools() -> list:
 async def call_tool(name: str, arguments: dict[str, Any]) -> list:
     try:
         args = arguments or {}
-        if name == "show_plan":
-            return _text(show_plan(_load(args)))
-        if name == "show_current_iteration":
-            return _text(show_current_iteration(_load(args)))
+        if name == "get_current_iteration":
+            return _text(get_current_iteration_view(_load(args)))
         if name == "get_iteration":
             version = args.get("version")
             if not version:
                 return _err("version is required")
             return _text(get_iteration_view(_load(args), version))
+        if name == "show_current_iteration":
+            return _text(show_current_iteration(_load(args)))
+        if name == "show_plan":
+            return _text(show_plan(_load(args)))
         if name == "list_iterations":
             return _text(list_iterations_view(_load(args), args.get("filter", "all")))
         if name == "get_backlog":

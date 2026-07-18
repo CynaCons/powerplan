@@ -12,6 +12,7 @@ Iterations are the only structural unit tools operate on under the plan
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, Sequence, Union
@@ -155,19 +156,71 @@ class Plan:
         return None
 
     def current_iteration(self) -> Optional[Iteration]:
-        """Active / first-open iteration with remaining work (else last)."""
+        """
+        Resolve the *current* iteration agents should work on.
+
+        Priority:
+        1. Explicit markers: status/title contains "current" (e.g. ``(current)``).
+        2. ``## Current Status`` table prose with a ``**current**`` row pointing
+           at a version that still exists in the plan.
+        3. First open iteration that still has incomplete checkbox tasks.
+        4. First open iteration shell.
+        5. Last iteration (plan fully complete / empty).
+        """
         iterations = self.all_iterations()
         if not iterations:
             return None
-        # Prefer first open iteration that still has incomplete checkbox tasks
+
+        # 1) Explicit (current) on the iteration itself
+        marked: List[Iteration] = []
+        for it in iterations:
+            blob = f"{it.status or ''} {it.title}".lower()
+            if re.search(r"\bcurrent\b", blob):
+                marked.append(it)
+        if marked:
+            # Prefer an open marked iter; else the last marked (most recent tag)
+            for it in marked:
+                if it.is_open:
+                    return it
+            return marked[-1]
+
+        # 2) Current Status table in freeform prose
+        from_table = self._current_from_status_table()
+        if from_table is not None:
+            return from_table
+
+        # 3) First open with remaining tasks
         for it in iterations:
             if it.is_open and any(not t.done for t in it.tasks):
                 return it
-        # Then first open shell (status/empty)
+        # 4) First open shell
         for it in iterations:
             if it.is_open:
                 return it
+        # 5) Fallback
         return iterations[-1]
+
+    def _current_from_status_table(self) -> Optional[Iteration]:
+        """Parse ``| vX.Y.Z | **current** — … |`` rows from prose blocks."""
+        # version cell then a cell containing **current** (markdown bold)
+        row_re = re.compile(
+            r"\|\s*(v?\d+\.\d+(?:\.\d+)?(?:[-–][^\s|]*)?)\s*\|[^|\n]*\*\*current\*\*",
+            re.IGNORECASE,
+        )
+        for block in self.blocks:
+            raw = getattr(block, "raw", None)
+            if not raw or "current" not in raw.lower():
+                continue
+            # Prefer the last **current** row in the block (table grows downward)
+            hits = row_re.findall(raw)
+            if not hits:
+                continue
+            version = hits[-1].strip()
+            it = self.find_iteration(version)
+            if it is not None:
+                return it
+            # try stripping suffix after first three version parts already handled
+        return None
 
     def all_backlog_items(self) -> List[BacklogItem]:
         items: List[BacklogItem] = []
