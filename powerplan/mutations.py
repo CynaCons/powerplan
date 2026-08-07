@@ -160,6 +160,52 @@ def _append_major_child(major: MajorSection, node) -> None:
     major.children.append(node)
 
 
+_RE_RULE = re.compile(r"^[-*_]{3,}$")
+
+
+def _trim_trailing_rule(raw: str) -> str:
+    """Drop trailing horizontal rules (and the blank lines around them)."""
+    nl = "\r\n" if "\r\n" in raw else "\n"
+    lines = raw.replace("\r\n", "\n").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()  # text ended with a newline
+    removed = False
+    while lines:
+        tail = lines[-1].strip()
+        if not tail:
+            lines.pop()
+        elif _RE_RULE.match(tail):
+            lines.pop()
+            removed = True
+        else:
+            break
+    if not removed:
+        return raw
+    body = nl.join(lines)
+    return body + nl if body else ""
+
+
+def _strip_trailing_dividers(section: BacklogSection) -> None:
+    """
+    Drop a trailing horizontal rule from a relocated backlog.
+
+    The parser absorbs whatever follows a backlog header into that section, so
+    a ``---`` that separated the backlog from later majors rides along when the
+    section moves and lands as a dangling rule at end of file. Trailing prose is
+    merged before trimming because the rule is often embedded in the same block
+    as real content; merging is byte-neutral since the writer concatenates raws.
+    """
+    buf: List[ProseBlock] = []
+    while section.items and isinstance(section.items[-1], ProseBlock):
+        buf.append(section.items.pop())
+    if not buf:
+        return
+    buf.reverse()
+    trimmed = _trim_trailing_rule("".join(n.raw for n in buf))
+    if trimmed:
+        section.items.append(ProseBlock(raw=trimmed))
+
+
 def normalize_plan(plan: Plan) -> Plan:
     """
     Enforce document invariants on a mutated plan before it is written.
@@ -173,7 +219,12 @@ def normalize_plan(plan: Plan) -> Plan:
     backlogs = [b for b in plan.blocks if isinstance(b, BacklogSection)]
     if backlogs:
         rest = [b for b in plan.blocks if not isinstance(b, BacklogSection)]
+        relocated = plan.blocks != rest + backlogs
         plan.blocks = rest + backlogs
+        if relocated:
+            # A divider that separated the backlog from the sections below it
+            # has nothing left to separate once the backlog moves to the end.
+            _strip_trailing_dividers(backlogs[-1])
 
     nl = _doc_newline(plan)
     seen = ""

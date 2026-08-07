@@ -133,4 +133,4 @@ heavy deps.
 - Multi-plan workspaces (monorepos with nested PLAN.md files)
 - Plan → GitHub issues export (one-way)
 - Optional: structured tool output for Current Status section
-- `recreate_plan.py` no longer byte-identical for plans with content after the backlog (v0.1.2 line superseded by v0.5.0 backlog-last invariant) — test now asserts content preservation + normalized equality
+- `recreate_plan.py` byte-identity now requires a backlog-last source; PowerNote's plan was normalized (backlog moved below v0.27, redundant `---` dropped) to restore it

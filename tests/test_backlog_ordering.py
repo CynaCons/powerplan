@@ -115,6 +115,48 @@ def test_blank_line_before_appended_headers():
         assert not line.startswith("- Idea A##")
 
 
+def test_relocated_backlog_drops_trailing_divider(tmp_path: Path):
+    """A `---` separating the backlog from later majors must not trail at EOF."""
+    broken = (
+        "# Demo\n\n"
+        "## Backlog\n"
+        "- Idea A\n\n"
+        "---\n\n"
+        "## v0.2 — Editor rewrite\n\n"
+        "### v0.2.1 — Parser cleanup\n"
+        "- [ ] Rewrite tokenizer\n"
+    )
+    path = tmp_path / "PLAN.md"
+    path.write_bytes(broken.encode("utf-8"))
+    m.mutate_and_save(path, lambda p: m.complete_task(p, "v0.2.1", "Rewrite tokenizer"))
+
+    healed = path.read_text(encoding="utf-8")
+    assert healed.index("## v0.2") < healed.index("## Backlog")
+    assert healed.rstrip().endswith("- Idea A")
+    assert not healed.rstrip().endswith("---")
+    assert healed.endswith("\n")
+
+
+def test_backlog_already_last_keeps_its_content(tmp_path: Path):
+    """No relocation → nothing is stripped, even a legitimate trailing rule."""
+    good = (
+        "# Demo\n\n"
+        "## v0.2 — Editor rewrite\n\n"
+        "### v0.2.1 — Parser cleanup\n"
+        "- [ ] Rewrite tokenizer\n\n"
+        "## Backlog\n"
+        "- Idea A\n\n"
+        "---\n"
+    )
+    path = tmp_path / "PLAN.md"
+    path.write_bytes(good.encode("utf-8"))
+    m.mutate_and_save(path, lambda p: m.complete_task(p, "v0.2.1", "Rewrite tokenizer"))
+
+    healed = path.read_text(encoding="utf-8")
+    assert healed.rstrip().endswith("---")
+    assert "- Idea A" in healed
+
+
 def test_normalize_is_idempotent():
     plan = m.empty_plan("Demo")
     m.add_to_backlog(plan, "Idea A")
