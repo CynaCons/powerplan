@@ -50,8 +50,16 @@ def test_create_major_iteration_tasks_roundtrip(tmp_path: Path):
     assert it.total_count == 2
 
 
-def test_recreate_powernote_byte_identical():
-    """Full PowerNote PLAN rebuild via mutation-driven recreate script."""
+def test_recreate_powernote_preserves_content_backlog_last():
+    """
+    Full PowerNote PLAN rebuild via the mutation-driven recreate script.
+
+    Until v0.5.0 this asserted a byte-identical rebuild. PowerNote's plan puts
+    ``## Future (Backlog)`` mid-document with further majors after it, and the
+    backlog-last invariant deliberately relocates that section — so the
+    guarantee is now: no content is lost, and rebuild and source converge to
+    the same normalized document.
+    """
     source = Path(r"C:\dev\private-repo\PowerNote\PLAN.md")
     if not source.is_file():
         return  # skip if machine lacks private clone
@@ -60,10 +68,22 @@ def test_recreate_powernote_byte_identical():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from scripts.recreate_plan import rebuild
 
+    from powerplan.plan_parser import parse_plan_file
+
     text = rebuild(source)
     src = source.read_text(encoding="utf-8")
-    # Normalize newlines for comparison (Windows may use CRLF on disk)
-    assert text.replace("\r\n", "\n") == src.replace("\r\n", "\n")
+
+    # Every line survives the rebuild, only section order changes
+    assert sorted(text.splitlines()) == sorted(src.splitlines())
+
+    # Backlog ends up last in the rebuilt document
+    rebuilt = parse_plan(text)
+    assert type(rebuilt.blocks[-1]).__name__ == "BacklogSection"
+
+    # Both sides normalize to exactly the same bytes
+    norm_rebuild = write_plan(m.normalize_plan(rebuilt))
+    norm_source = write_plan(m.normalize_plan(parse_plan_file(source)))
+    assert norm_rebuild.replace("\r\n", "\n") == norm_source.replace("\r\n", "\n")
 
 
 def test_current_iteration_prefers_current_marker():

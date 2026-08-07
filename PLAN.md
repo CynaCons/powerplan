@@ -114,6 +114,18 @@ heavy deps.
 - [ ] `plan_status_for_agents` compact context payload for spawn prompts
 - [ ] `check_plan` as pre-commit/CI recipe docs
 
+## v0.5 — Plan structure invariants
+> Ordering guarantees the writer must uphold regardless of mutation order.
+
+### v0.5.0 — Backlog pinned last (2026-08-07) (COMPLETE)
+**Goal:** The backlog section is always the final block of a plan; new majors, iterations and prose are inserted before it, and existing plans with a misplaced backlog are normalized on mutation.
+- [x] `_insert_top_level(plan, node)` helper: insert before the first BacklogSection, else append
+- [x] `create_major` / `create_iteration` / `append_prose` / `add_separator` route through the helper
+- [x] Normalize existing plans: relocate a misplaced backlog to the end on mutation (unmutated parse→write stays byte-identical)
+- [x] Blank line before appended `##` / `###` headers (no jammed sections)
+- [x] `check_plan` lint rule: warn when content follows the backlog section
+- [x] Tests: backlog-then-major ordering, normalization of an already-broken plan, round-trip fixtures still byte-identical
+
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
 - `update_task` / `remove_task` / `defer_task`
@@ -121,3 +133,4 @@ heavy deps.
 - Multi-plan workspaces (monorepos with nested PLAN.md files)
 - Plan → GitHub issues export (one-way)
 - Optional: structured tool output for Current Status section
+- `recreate_plan.py` no longer byte-identical for plans with content after the backlog (v0.1.2 line superseded by v0.5.0 backlog-last invariant) — test now asserts content preservation + normalized equality

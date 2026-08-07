@@ -31,7 +31,7 @@ from .plan_model import (
     _norm_version,
 )
 from .plan_parser import parse_plan_file
-from .plan_writer import write_plan, write_plan_file
+from .plan_writer import write_node, write_plan, write_plan_file
 
 # Powernote / managed format uses em dash with spaces
 _EM = "—"
@@ -99,6 +99,97 @@ def format_blockquote(description: str) -> str:
     return f"> {desc}\n"
 
 
+def _backlog_index(plan: Plan) -> Optional[int]:
+    """Index of the first BacklogSection, or None when the plan has no backlog."""
+    for i, block in enumerate(plan.blocks):
+        if isinstance(block, BacklogSection):
+            return i
+    return None
+
+
+def _doc_newline(plan: Plan) -> str:
+    """CRLF when the document already uses it, else LF."""
+    for block in plan.blocks:
+        raw = getattr(block, "raw", "") or getattr(block, "header_raw", "")
+        if raw and "\r\n" in raw:
+            return "\r\n"
+    return "\n"
+
+
+def _pad_header(node, preceding: str, nl: str) -> None:
+    """
+    Ensure a blank line separates ``node``'s header from ``preceding`` text.
+
+    The padding goes on the new node's own header rather than on the previous
+    block, so existing content is never rewritten.
+    """
+    # Parsed headers never carry leading newlines — only this function adds
+    # them, so stripping first makes repeated normalization idempotent.
+    header = (node.header_raw or "").lstrip("\r\n")
+    normalized = preceding.replace("\r\n", "\n")
+    if not preceding.strip() or normalized.endswith("\n\n"):
+        node.header_raw = header
+        return
+    pad = nl if normalized.endswith("\n") else nl + nl
+    node.header_raw = pad + header
+
+
+def _insert_top_level(plan: Plan, node) -> None:
+    """
+    Insert a top-level node, keeping the backlog pinned as the final section.
+
+    Every structural top-level mutation goes through here; a plain ``append``
+    would strand the backlog mid-document once one exists.
+    """
+    idx = _backlog_index(plan)
+    if idx is None:
+        idx = len(plan.blocks)
+    if isinstance(node, (MajorSection, BacklogSection, Iteration)):
+        preceding = "".join(write_node(b) for b in plan.blocks[:idx])
+        _pad_header(node, preceding, _doc_newline(plan))
+    plan.blocks.insert(idx, node)
+
+
+def _append_major_child(major: MajorSection, node) -> None:
+    """Append under a major, padding structural headers off previous content."""
+    if isinstance(node, (Iteration, MajorSection)):
+        preceding = "".join(write_node(c) for c in major.children)
+        if preceding:
+            nl = "\r\n" if "\r\n" in preceding else "\n"
+            _pad_header(node, preceding, nl)
+    major.children.append(node)
+
+
+def normalize_plan(plan: Plan) -> Plan:
+    """
+    Enforce document invariants on a mutated plan before it is written.
+
+    1. Backlog section(s) are the final blocks of the document.
+    2. A blank line precedes every top-level section header.
+
+    Only the save path calls this, so an unmutated parse -> write round-trip
+    stays byte-identical; plans are healed the first time they are touched.
+    """
+    backlogs = [b for b in plan.blocks if isinstance(b, BacklogSection)]
+    if backlogs:
+        rest = [b for b in plan.blocks if not isinstance(b, BacklogSection)]
+        plan.blocks = rest + backlogs
+
+    nl = _doc_newline(plan)
+    seen = ""
+    for block in plan.blocks:
+        if isinstance(block, (MajorSection, BacklogSection, Iteration)):
+            _pad_header(block, seen, nl)
+        if isinstance(block, MajorSection):
+            child_seen = block.header_raw or ""
+            for child in block.children:
+                if isinstance(child, Iteration):
+                    _pad_header(child, child_seen, nl)
+                child_seen += write_node(child)
+        seen += write_node(block)
+    return plan
+
+
 def empty_plan(title: str = "Implementation Plan") -> Plan:
     """Create an empty plan with an H1 title and blank line."""
     h1 = f"# {title}\n"
@@ -127,19 +218,21 @@ def set_preamble(plan: Plan, preamble: str) -> Plan:
 
 
 def append_prose(plan: Plan, text: str) -> Plan:
-    """Append opaque prose at top level (closes no structure beyond append)."""
+    """Append opaque prose at top level, above the backlog when one exists."""
     raw = _nl(text)
-    if plan.blocks and isinstance(plan.blocks[-1], ProseBlock):
-        plan.blocks[-1].raw += raw
+    idx = _backlog_index(plan)
+    tail = len(plan.blocks) if idx is None else idx
+    if tail > 0 and isinstance(plan.blocks[tail - 1], ProseBlock):
+        plan.blocks[tail - 1].raw += raw
     else:
-        plan.blocks.append(ProseBlock(raw=raw))
+        plan.blocks.insert(tail, ProseBlock(raw=raw))
     return plan
 
 
 def add_separator(plan: Plan) -> Plan:
     """Append a markdown horizontal rule block (powernote section divider)."""
     # Prefer separator as its own prose chunk for clarity
-    plan.blocks.append(ProseBlock(raw="\n---\n\n"))
+    _insert_top_level(plan, ProseBlock(raw="\n---\n\n"))
     return plan
 
 
@@ -159,7 +252,7 @@ def create_major(
     )
     if description:
         major.children.append(ProseBlock(raw=format_blockquote(description) + "\n"))
-    plan.blocks.append(major)
+    _insert_top_level(plan, major)
     return major
 
 
@@ -213,9 +306,9 @@ def create_iteration(
 
     maj = _find_major(plan, major)
     if maj is not None:
-        maj.children.append(it)
+        _append_major_child(maj, it)
     else:
-        plan.blocks.append(it)
+        _insert_top_level(plan, it)
     return it
 
 
@@ -323,7 +416,8 @@ def ensure_backlog(plan: Plan, title: str = "Future (Backlog)") -> BacklogSectio
         if isinstance(b, BacklogSection):
             return b
     sec = BacklogSection(title=title, header_raw=f"## {title}\n", items=[])
-    plan.blocks.append(sec)
+    # No backlog yet, so this lands at the end — where it must stay.
+    _insert_top_level(plan, sec)
     return sec
 
 
@@ -353,6 +447,7 @@ def load_plan_for_mutation(plan_path: Union[str, Path]) -> Plan:
 
 def save_plan(plan: Plan, plan_path: Optional[Union[str, Path]] = None) -> Path:
     with _file_lock:
+        normalize_plan(plan)
         return write_plan_file(plan, plan_path)
 
 
@@ -380,6 +475,7 @@ def mutate_and_save(
                 f"No PLAN.md at {path}. Use create_plan(plan_path=...) first."
             )
         mutator(plan)
+        normalize_plan(plan)
         write_plan_file(plan, path)
         return plan
 
@@ -548,6 +644,27 @@ def check_plan(plan: Plan) -> dict:
                         "message": f"{it.version} marked complete but has {open_n} open task(s)",
                     }
                 )
+
+    # Backlog must be the final section (any mutation relocates it)
+    bidx = _backlog_index(plan)
+    if bidx is not None:
+        trailing = [
+            b
+            for b in plan.blocks[bidx + 1 :]
+            if not isinstance(b, BacklogSection)
+            and not (isinstance(b, ProseBlock) and not b.raw.strip())
+        ]
+        if trailing:
+            issues.append(
+                {
+                    "code": "content_after_backlog",
+                    "count": len(trailing),
+                    "message": (
+                        f"{len(trailing)} block(s) follow the backlog section; "
+                        "the backlog must be last (next mutation will relocate it)"
+                    ),
+                }
+            )
 
     cur = plan.current_iteration()
     return {
