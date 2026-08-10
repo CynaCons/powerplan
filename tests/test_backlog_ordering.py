@@ -157,6 +157,44 @@ def test_backlog_already_last_keeps_its_content(tmp_path: Path):
     assert "- Idea A" in healed
 
 
+def test_add_task_does_not_bury_separator_blank_lines(tmp_path: Path):
+    """
+    Regression: the blank line padded before `## Backlog` is re-parsed into the
+    preceding iteration's body. Appending past it buried one blank per call,
+    so tasks ended up double-spaced.
+    """
+    path = tmp_path / "PLAN.md"
+    m.create_plan(title="Demo", plan_path=path)
+    m.mutate_and_save(path, lambda p: m.add_to_backlog(p, "Idea A"))
+    m.mutate_and_save(path, lambda p: m.create_major(p, "v0.2", "M"))
+    m.mutate_and_save(path, lambda p: m.create_iteration(p, "v0.2.1", "I", major="v0.2"))
+    for n in range(4):
+        m.mutate_and_save(path, lambda p, n=n: m.add_task(p, "v0.2.1", f"task {n}"))
+
+    text = path.read_text(encoding="utf-8")
+    block = text[text.index("### v0.2.1") :]
+    assert "\n\n- [ ]" not in block, f"blank line between tasks:\n{block!r}"
+
+    it = parse_plan(text).find_iteration("v0.2.1")
+    assert [t.text for t in it.tasks] == [f"task {n}" for n in range(4)]
+    # body order must match tasks order
+    assert [b.text for b in it.body if hasattr(b, "done")] == [f"task {n}" for n in range(4)]
+
+
+def test_add_to_backlog_does_not_accumulate_blanks(tmp_path: Path):
+    path = tmp_path / "PLAN.md"
+    m.create_plan(title="Demo", plan_path=path)
+    for n in range(4):
+        m.mutate_and_save(path, lambda p, n=n: m.add_to_backlog(p, f"Idea {n}"))
+
+    text = path.read_text(encoding="utf-8")
+    tail = text[text.index("## Future (Backlog)") :]
+    assert "\n\n- " not in tail, f"blank line between backlog items:\n{tail!r}"
+    assert [i.text for i in parse_plan(text).all_backlog_items()] == [
+        f"Idea {n}" for n in range(4)
+    ]
+
+
 def test_normalize_is_idempotent():
     plan = m.empty_plan("Demo")
     m.add_to_backlog(plan, "Idea A")

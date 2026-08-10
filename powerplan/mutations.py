@@ -403,8 +403,34 @@ def add_task(
     else:
         task.text = text
     it.tasks.append(task)
-    it.body.append(task)
+    it.body.insert(_task_insert_index(it), task)
     return task
+
+
+def _trailing_blank_run(nodes: List) -> int:
+    """Index of the first node in the trailing run of blank-only prose."""
+    idx = len(nodes)
+    while idx > 0:
+        node = nodes[idx - 1]
+        if isinstance(node, ProseBlock) and not node.raw.strip():
+            idx -= 1
+        else:
+            break
+    return idx
+
+
+def _task_insert_index(it: Iteration) -> int:
+    """
+    Where a new task line belongs in an iteration body.
+
+    After the last existing task, and always before trailing blank prose —
+    section-separating blank lines are re-parsed into the preceding
+    iteration's body, and appending past them buries one blank line per call.
+    """
+    for i in range(len(it.body) - 1, -1, -1):
+        if isinstance(it.body[i], Task):
+            return i + 1
+    return _trailing_blank_run(it.body)
 
 
 def _match_task(it: Iteration, task_query: str) -> Task:
@@ -483,7 +509,7 @@ def add_to_backlog(
     else:
         raw = f"- {body}\n"
     item = BacklogItem(text=body, raw=raw)
-    sec.items.append(item)
+    sec.items.insert(_trailing_blank_run(sec.items), item)
     return item
 
 
