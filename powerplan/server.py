@@ -65,6 +65,26 @@ _AGENT_PROP = {
         "description": "Optional agent id tag written as [agent: id] on touched lines.",
     }
 }
+# Shared task addressing: text match or 1-based ordinal, plus an optional
+# compare-and-swap guard. Exactly one of task/index per call.
+_TASK_ADDRESS_PROPS = {
+    "task": {
+        "type": "string",
+        "description": "Task text (exact, else unique substring). One of task/index.",
+    },
+    "index": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "1-based position within the iteration. One of task/index.",
+    },
+    "expect": {
+        "type": "string",
+        "description": (
+            "Optional guard: current task text must match or the edit is refused. "
+            "Agent tags are ignored in the comparison."
+        ),
+    },
+}
 
 
 def _text(payload: str) -> list:
@@ -257,13 +277,13 @@ async def list_tools() -> list:
         ),
         Tool(
             name="complete_task",
-            description="Tick a task checkbox (substring match).",
+            description="Tick a task checkbox (substring match, or index).",
             inputSchema={
                 "type": "object",
-                "required": ["version", "task"],
+                "required": ["version"],
                 "properties": {
                     "version": {"type": "string"},
-                    "task": {"type": "string"},
+                    **_TASK_ADDRESS_PROPS,
                     **_PLAN_PATH_PROP,
                     **_AGENT_PROP,
                 },
@@ -271,13 +291,62 @@ async def list_tools() -> list:
         ),
         Tool(
             name="reopen_task",
-            description="Untick a task checkbox.",
+            description="Untick a task checkbox (substring match, or index).",
             inputSchema={
                 "type": "object",
-                "required": ["version", "task"],
+                "required": ["version"],
                 "properties": {
                     "version": {"type": "string"},
-                    "task": {"type": "string"},
+                    **_TASK_ADDRESS_PROPS,
+                    **_PLAN_PATH_PROP,
+                    **_AGENT_PROP,
+                },
+            },
+        ),
+        Tool(
+            name="update_task",
+            description=(
+                "Rewrite a task's text, preserving its done state. Address it by "
+                "`task` substring or 1-based `index` (see get_iteration)."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["version", "text"],
+                "properties": {
+                    "version": {"type": "string"},
+                    "text": {"type": "string", "description": "New task text."},
+                    **_TASK_ADDRESS_PROPS,
+                    **_PLAN_PATH_PROP,
+                    **_AGENT_PROP,
+                },
+            },
+        ),
+        Tool(
+            name="remove_task",
+            description="Delete a task from an iteration.",
+            inputSchema={
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                    "version": {"type": "string"},
+                    **_TASK_ADDRESS_PROPS,
+                    **_PLAN_PATH_PROP,
+                },
+            },
+        ),
+        Tool(
+            name="defer_task",
+            description="Move a task out of its iteration and into the backlog.",
+            inputSchema={
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                    "version": {"type": "string"},
+                    "reason": {
+                        "type": "string",
+                        "description": "Optional why, appended to the backlog entry.",
+                    },
+                    **_TASK_ADDRESS_PROPS,
                     **_PLAN_PATH_PROP,
                     **_AGENT_PROP,
                 },
@@ -431,20 +500,38 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list:
                     p, ver, text, done=bool(args.get("done", False)), agent=args.get("agent")
                 ),
             )
-        if name == "complete_task":
-            ver, task = args.get("version"), args.get("task")
-            if not ver or not task:
-                return _err("version and task are required")
-            return _mutate(
-                args, lambda p: mut.complete_task(p, ver, task, agent=args.get("agent"))
-            )
-        if name == "reopen_task":
-            ver, task = args.get("version"), args.get("task")
-            if not ver or not task:
-                return _err("version and task are required")
-            return _mutate(
-                args, lambda p: mut.reopen_task(p, ver, task, agent=args.get("agent"))
-            )
+        if name in ("complete_task", "reopen_task", "update_task", "remove_task", "defer_task"):
+            ver = args.get("version")
+            if not ver:
+                return _err("version is required")
+            addr = {
+                "task": args.get("task"),
+                "index": args.get("index"),
+                "expect": args.get("expect"),
+            }
+            if addr["task"] is None and addr["index"] is None:
+                return _err("one of task or index is required")
+            if addr["task"] is not None and addr["index"] is not None:
+                return _err("pass either task or index, not both")
+
+            if name == "complete_task":
+                fn = lambda p: mut.complete_task(p, ver, agent=args.get("agent"), **addr)
+            elif name == "reopen_task":
+                fn = lambda p: mut.reopen_task(p, ver, agent=args.get("agent"), **addr)
+            elif name == "update_task":
+                text = args.get("text")
+                if text is None or str(text).strip() == "":
+                    return _err("text is required")
+                fn = lambda p: mut.update_task(
+                    p, ver, text=text, agent=args.get("agent"), **addr
+                )
+            elif name == "remove_task":
+                fn = lambda p: mut.remove_task(p, ver, **addr)
+            else:  # defer_task
+                fn = lambda p: mut.defer_task(
+                    p, ver, reason=args.get("reason"), agent=args.get("agent"), **addr
+                )
+            return _mutate(args, fn)
         if name == "add_to_backlog":
             text = args.get("text")
             if text is None:

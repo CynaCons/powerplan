@@ -37,7 +37,7 @@ heavy deps.
 - [x] Surgical writes + file lock (`mutate_and_save`); powernote-style `—` headers
 - [x] Parser: unversioned `##` sections (Planned / Current Status) no longer swallow prior iteration tasks
 - [x] Smoke: recreate PowerNote PLAN.md via mutations → `temp.md` byte-identical (CRLF-preserving)
-- [ ] `update_task` / `remove_task` / `defer_task(reason?)` (remaining CRUD niceties)
+- [x] `update_task` / `remove_task` / `defer_task(reason?)` (remaining CRUD niceties)
 
 
 ### v0.1.3 — Lifecycle + minimal check_plan
@@ -126,19 +126,19 @@ heavy deps.
 - [x] `check_plan` lint rule: warn when content follows the backlog section
 - [x] Tests: backlog-then-major ordering, normalization of an already-broken plan, round-trip fixtures still byte-identical
 
-### v0.5.1 — Task editing CRUD
+### v0.5.1 — Task editing CRUD (2026-08-10) (COMPLETE)
 **Goal:** Address tasks by text (existing matcher) with an optional 1-based index within the iteration as disambiguator; optional `expect` guard gives compare-and-swap safety on destructive edits. No task IDs, no line numbers.
 
-- [ ] `_resolve_task(it, task?, index?, expect?)` shared resolver — exactly one of task/index required
-- [ ] `update_task(version, task?, index?, text, expect?, agent?)` — rewrites text, preserves done state
-- [ ] `remove_task(version, task?, index?, expect?)` — drops from both `tasks` and `body`
-- [ ] `defer_task(version, task?, index?, reason?)` — move task to backlog with optional reason suffix
-- [ ] Retrofit optional `index` onto `complete_task` / `reopen_task`; expose 1-based `index` in `get_iteration` payload
-- [ ] Tests: index/text equivalence, `expect` mismatch refuses edit, ambiguous text error, defer round-trip, agent tags preserved
+- [x] `_resolve_task(it, task?, index?, expect?)` shared resolver — exactly one of task/index required
+- [x] `update_task(version, task?, index?, text, expect?, agent?)` — rewrites text, preserves done state
+- [x] `remove_task(version, task?, index?, expect?)` — drops from both `tasks` and `body`
+- [x] `defer_task(version, task?, index?, reason?)` — move task to backlog with optional reason suffix
+- [x] Retrofit optional `index` onto `complete_task` / `reopen_task`; expose 1-based `index` in `get_iteration` payload
+- [x] Tests: index/text equivalence, `expect` mismatch refuses edit, ambiguous text error, defer round-trip, agent tags preserved
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
-- `update_task` / `remove_task` / `defer_task`
+- Backlog item CRUD: `update_backlog_item` / `remove_backlog_item` (iteration tasks got this in v0.5.1; backlog entries are still append-only)
 - ASCII gantt timeline view with dates (powerplan skill parity)
 - Multi-plan workspaces (monorepos with nested PLAN.md files)
 - Plan → GitHub issues export (one-way)

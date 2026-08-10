@@ -98,10 +98,12 @@ class Iteration:
             },
             "tasks": [
                 {
+                    # 1-based ordinal; addresses this task in edit tools
+                    "index": i,
                     "text": t.text,
                     "done": t.done,
                 }
-                for t in self.tasks
+                for i, t in enumerate(self.tasks, start=1)
             ],
         }
 

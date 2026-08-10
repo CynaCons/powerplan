@@ -450,13 +450,145 @@ def _match_task(it: Iteration, task_query: str) -> Task:
     )
 
 
-def complete_task(
-    plan: Plan, version: str, task: str, *, agent: Optional[str] = None
+def _resolve_task(
+    it: Iteration,
+    *,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
 ) -> Task:
+    """
+    Resolve one task of an iteration by text or by 1-based ordinal.
+
+    Exactly one of ``task`` (substring match, same matcher the lifecycle tools
+    use) or ``index`` is required. ``expect`` asserts the task's current text
+    first — compare-and-swap for callers editing a plan that may have moved.
+    Agent tags are ignored on both sides of that comparison so callers need not
+    know whether a line carries one.
+    """
+    has_task = task is not None and str(task).strip() != ""
+    has_index = index is not None
+
+    if has_task and has_index:
+        raise ValueError("Pass either task or index, not both")
+    if not has_task and not has_index:
+        raise ValueError("One of task or index is required")
+
+    if has_index:
+        try:
+            idx = int(index)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            raise ValueError(f"index must be an integer, got {index!r}")
+        total = len(it.tasks)
+        if total == 0:
+            raise ValueError(f"{it.version} has no tasks to address")
+        if idx < 1 or idx > total:
+            raise ValueError(f"index {idx} out of range for {it.version} (1..{total})")
+        found = it.tasks[idx - 1]
+    else:
+        found = _match_task(it, str(task))
+
+    if expect is not None:
+        want = _strip_agent_tag(str(expect)).strip()
+        got = _strip_agent_tag(found.text).strip()
+        if want != got:
+            raise ValueError(
+                f"expect mismatch in {it.version}: plan has {got!r}, expected {want!r}"
+            )
+    return found
+
+
+def _iteration_or_raise(plan: Plan, version: str) -> Iteration:
     it = plan.find_iteration(version)
     if it is None:
         raise ValueError(f"Iteration not found: {version}")
-    t = _match_task(it, task)
+    return it
+
+
+def _existing_agent(text: str) -> Optional[str]:
+    hit = re.search(r"\[agent:\s*([^\]]+)\]\s*$", text)
+    return hit.group(1).strip() if hit else None
+
+
+def _drop_task(it: Iteration, target: Task) -> None:
+    """Remove by identity — equal-valued tasks must not be confused."""
+    it.tasks = [t for t in it.tasks if t is not target]
+    it.body = [n for n in it.body if n is not target]
+
+
+def update_task(
+    plan: Plan,
+    version: str,
+    *,
+    text: str,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
+    agent: Optional[str] = None,
+) -> Task:
+    """Rewrite a task's text in place, preserving its done state."""
+    it = _iteration_or_raise(plan, version)
+    t = _resolve_task(it, task=task, index=index, expect=expect)
+    new_text = "" if text is None else str(text)
+    if not new_text.strip():
+        raise ValueError("text must be a non-empty string")
+    base = _strip_agent_tag(new_text)
+    # Keep whatever agent tag the line already carried unless one is supplied
+    tag = agent if agent is not None else _existing_agent(t.text)
+    t.text = base + _agent_suffix(tag)
+    t.raw = format_task_line(base, done=t.done, agent=tag)
+    return t
+
+
+def remove_task(
+    plan: Plan,
+    version: str,
+    *,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
+) -> Task:
+    """Delete a task from an iteration (both the task list and the body)."""
+    it = _iteration_or_raise(plan, version)
+    t = _resolve_task(it, task=task, index=index, expect=expect)
+    _drop_task(it, t)
+    return t
+
+
+def defer_task(
+    plan: Plan,
+    version: str,
+    *,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    reason: Optional[str] = None,
+    expect: Optional[str] = None,
+    agent: Optional[str] = None,
+) -> BacklogItem:
+    """Move a task out of its iteration and into the backlog."""
+    it = _iteration_or_raise(plan, version)
+    t = _resolve_task(it, task=task, index=index, expect=expect)
+    base = _strip_agent_tag(t.text)
+    _drop_task(it, t)
+
+    note = f"deferred from {it.version}"
+    if reason and str(reason).strip():
+        note = f"{note}: {str(reason).strip()}"
+    tag = agent if agent is not None else _existing_agent(t.text)
+    return add_to_backlog(plan, f"{base} ({note})", agent=tag)
+
+
+def complete_task(
+    plan: Plan,
+    version: str,
+    task: Optional[str] = None,
+    *,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
+    agent: Optional[str] = None,
+) -> Task:
+    it = _iteration_or_raise(plan, version)
+    t = _resolve_task(it, task=task, index=index, expect=expect)
     t.done = True
     base = _strip_agent_tag(t.text)
     if agent:
@@ -468,12 +600,16 @@ def complete_task(
 
 
 def reopen_task(
-    plan: Plan, version: str, task: str, *, agent: Optional[str] = None
+    plan: Plan,
+    version: str,
+    task: Optional[str] = None,
+    *,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
+    agent: Optional[str] = None,
 ) -> Task:
-    it = plan.find_iteration(version)
-    if it is None:
-        raise ValueError(f"Iteration not found: {version}")
-    t = _match_task(it, task)
+    it = _iteration_or_raise(plan, version)
+    t = _resolve_task(it, task=task, index=index, expect=expect)
     t.done = False
     base = _strip_agent_tag(t.text)
     t.text = base + (_agent_suffix(agent) if agent else "")
