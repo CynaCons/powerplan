@@ -142,12 +142,12 @@ heavy deps.
 - [x] pyproject.toml: classifiers, keywords, project.urls; version string matches the release we will tag [agent: grok-4.6]
 - [x] Smoke: `python -m powerplan` and `powerplan-mcp` both speak MCP stdio (list_tools) [agent: grok-4.6]
 
-### v0.6.1 — Official MCP Registry listing (current) (ACTIVE)
+### v0.6.1 — Official MCP Registry listing (2026-08-22) (COMPLETE)
 **Goal:** List `io.github.cynacons/powerplan` on the official MCP Registry so clients and aggregators can discover it. Requires the PyPI package from v0.6.0.
 - [x] `server.json` for `io.github.cynacons/powerplan` pointing at the PyPI package, stdio transport [agent: grok-4.6]
 - [x] README includes `mcp-name: io.github.cynacons/powerplan` (PyPI ownership proof for the registry) [agent: grok-4.6]
 - [x] Document `mcp-publisher login github` + `publish` for maintainers [agent: grok-4.6]
-- [ ] Publish to the official MCP Registry once the PyPI package is live [agent: grok-4.6]
+- [x] Publish to the official MCP Registry once the PyPI package is live [agent: grok-4.6]
 
 ### v0.6.2 — README + site for strangers (2026-08-22) (COMPLETE)
 **Goal:** Lead with a 30-second install path. Clone, editable install, and PowerSpawn submodule move under “from source.” Absorb leftover v0.1.4 agent-guide and MCP snippet work.
@@ -156,7 +156,7 @@ heavy deps.
 - [x] MCP snippets: Claude Code `.mcp.json`, Claude Desktop, Cursor, Grok (`uvx` / `uv run --with`) [agent: grok-4.6]
 - [x] Site hero + Integration: replace `pip install -e ".[dev]"` with the public `uvx` path [agent: grok-4.6]
 
-### v0.6.3 — Release, changelog, optional dogfood
+### v0.6.3 — Release, changelog, optional dogfood (current) (ACTIVE)
 **Goal:** Tagged public release with changelog and GitHub topics. Optional: install in two reference projects with the agent-docs rule that powerplan is the sanctioned PLAN.md writer.
 - [x] CHANGELOG.md covering shipped versions through this release [agent: grok-4.6]
 - [x] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
