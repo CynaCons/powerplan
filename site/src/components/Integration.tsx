@@ -6,8 +6,8 @@ const snippets = {
   mcp: `{
   "mcpServers": {
     "powerplan": {
-      "command": "python",
-      "args": ["-m", "powerplan"],
+      "command": "uvx",
+      "args": ["powerplan-mcp"],
       "env": {
         "PYTHONIOENCODING": "utf-8",
         "PYTHONUNBUFFERED": "1"
@@ -30,8 +30,8 @@ complete_task(version="v0.1.0", task="Wire auth", agent="grok-4.5")`,
   dual: `{
   "mcpServers": {
     "powerplan": {
-      "command": "python",
-      "args": ["-m", "powerplan"]
+      "command": "uvx",
+      "args": ["powerplan-mcp"]
     },
     "powerspawn": {
       "command": "python",
@@ -40,13 +40,12 @@ complete_task(version="v0.1.0", task="Wire auth", agent="grok-4.5")`,
   }
 }`,
   grok: `[mcp_servers.powerplan]
-command = "python"
-args = ["-m", "powerplan"]
-env = { PYTHONUNBUFFERED = "1" }
+command = "uvx"
+args = ["powerplan-mcp"]
+env = { PYTHONUNBUFFERED = "1", PYTHONIOENCODING = "utf-8" }
 enabled = true`,
-  submodule: `# PowerSpawn vendors powerplan as a submodule
-git submodule update --init --recursive
-# Register BOTH MCP servers — they do not merge`,
+  pip: `# No uv? pip install, then python -m powerplan
+pip install powerplan-mcp`,
 }
 
 function Block({ title, code }: { title: string; code: string }) {
@@ -88,18 +87,18 @@ export function Integration() {
         >
           <h2 className="text-4xl font-bold text-white mb-3">Integrate in your projects</h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
-            powerplan is a <strong className="text-slate-200">standalone</strong> MCP. PowerSpawn can
-            vendor it as a <strong className="text-slate-200">submodule</strong> so spawn-based
-            projects get both — still registered as two servers.
+            Public install is <code className="text-sky-300 mono">uvx powerplan-mcp</code>.
+            PowerSpawn can still vendor the repo as a submodule — register both as
+            separate MCP servers.
           </p>
         </motion.div>
 
         <div className="space-y-6">
-          <Block title="Project .mcp.json (Claude Code & friends)" code={snippets.mcp} />
+          <Block title="Project .mcp.json (Claude Code, Cursor, Claude Desktop)" code={snippets.mcp} />
+          <Block title="Grok config.toml" code={snippets.grok} />
           <Block title="Agent flow: create_plan + plan_path" code={snippets.usage} />
           <Block title="With PowerSpawn (peer MCP servers)" code={snippets.dual} />
-          <Block title="Grok config.toml" code={snippets.grok} />
-          <Block title="PowerSpawn submodule init" code={snippets.submodule} />
+          <Block title="pip (no uv)" code={snippets.pip} />
         </div>
 
         <motion.p

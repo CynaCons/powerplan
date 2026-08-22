@@ -1,62 +1,73 @@
+<!-- mcp-name: io.github.cynacons/powerplan -->
+
 # powerplan
 
 **PLAN.md as the operational backbone of agentic development.**
 
-`powerplan` is a standalone [MCP](https://modelcontextprotocol.io) server that
-gives coordinators and worker agents a **human-language API** over your
-project’s `PLAN.md`: show progress, create iterations, complete tasks, keep the
-header truthful — without freeform file thrash.
+`powerplan` is an [MCP](https://modelcontextprotocol.io) server that gives
+coordinators and worker agents a human-language API over your project’s
+`PLAN.md`: show progress, create iterations, complete tasks, keep the header
+truthful — without freeform file thrash.
+
+mcp-name: io.github.cynacons/powerplan
 
 | | |
 |---|---|
-| **Server name** | `powerplan` |
-| **Status** | v0.2.2 — create_plan, mutations, lifecycle, check_plan ([PLAN.md](PLAN.md)) |
-| **PRD** | [PRD.md](PRD.md) |
+| **MCP server name** | `powerplan` |
+| **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
+| **Registry** | `io.github.cynacons/powerplan` |
+| **Status** | v0.6.0 — public package + registry listing ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
-| **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional submodule) |
-
----
-
-## Why
-
-Agents often edit `PLAN.md` by hand. Headers drift, “COMPLETE” gets stamped
-without proof, and multi-agent swarms step on each other. powerplan is the
-**single writer**: tolerant reader, surgical writer, optional `[agent: …]` tags.
+| **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
 ---
 
 ## Install
 
-### Option A — clone + editable install
+You need [uv](https://docs.astral.sh/uv/) (provides `uvx`) or Python 3.10+.
 
 ```bash
-git clone https://github.com/CynaCons/powerplan.git
-cd powerplan
-pip install -e ".[dev]"
+uvx powerplan-mcp
 ```
 
-### Option B — via PowerSpawn (submodule)
+That is the stdio MCP server. Point your client at it:
 
-Projects that already use PowerSpawn can pull powerplan automatically:
+### Claude Code / Cursor / `.mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "powerplan": {
+      "command": "uvx",
+      "args": ["powerplan-mcp"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Same block in `claude_desktop_config.json` (`mcpServers`).
+
+### Grok (`~/.grok/config.toml` or project config)
+
+```toml
+[mcp_servers.powerplan]
+command = "uvx"
+args = ["powerplan-mcp"]
+env = { PYTHONUNBUFFERED = "1", PYTHONIOENCODING = "utf-8" }
+enabled = true
+```
+
+### pip (no uv)
 
 ```bash
-git submodule update --init --recursive   # if PowerSpawn vendors powerplan/
+pip install powerplan-mcp
 ```
-
-Then point MCP at `powerplan/powerplan_server.py` or `python -m powerplan`
-with `PYTHONPATH` including the submodule root.
-
-### Option C — path-only (no install)
-
-```bash
-python /path/to/powerplan/powerplan_server.py
-```
-
----
-
-## MCP registration
-
-### Claude Code / project `.mcp.json`
 
 ```json
 {
@@ -73,41 +84,34 @@ python /path/to/powerplan/powerplan_server.py
 }
 ```
 
-### Grok (`~/.grok/config.toml` or project config)
+---
 
-```toml
-[mcp_servers.powerplan]
-command = "python"
-args = ["-m", "powerplan"]
-env = { PYTHONUNBUFFERED = "1" }
-enabled = true
-```
+## Agent guide
 
-### Alongside PowerSpawn
+Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 
-```json
-{
-  "mcpServers": {
-    "powerplan": {
-      "command": "python",
-      "args": ["-m", "powerplan"]
-    },
-    "powerspawn": {
-      "command": "python",
-      "args": ["-m", "powerspawn.mcp_server"]
-    }
-  }
-}
-```
+1. If tools fail with “no PLAN.md” → `create_plan` first.
+2. `get_current_iteration` — what to work on now (JSON).
+3. `get_iteration(version)` — one iteration’s tasks and progress.
+4. Mutate with `add_task` / `complete_task` / `start_iteration` / `close_iteration`.
+5. `show_plan` is a human skim, not a dump.
 
-Register **both** as separate servers — nesting in a monorepo does not merge MCPs.
+Every tool accepts optional `plan_path` (relative or absolute). Default: walk up
+from cwd to the nearest `PLAN.md`.
+
+Optional `agent` on mutations writes a trailing `[agent: id]` tag on the touched line.
 
 ---
 
-## Tools (v0.2.2)
+## Why
 
-**Every tool accepts optional `plan_path`** (relative or absolute). Default: walk
-up from cwd to the nearest `PLAN.md`.
+Agents often edit `PLAN.md` by hand. Headers drift, “COMPLETE” gets stamped
+without proof, and multi-agent swarms step on each other. powerplan is the
+**single writer**: tolerant reader, surgical writer, optional `[agent: …]` tags.
+
+---
+
+## Tools
 
 | Tool | Behavior |
 |------|----------|
@@ -121,9 +125,6 @@ up from cwd to the nearest `PLAN.md`.
 | `check_plan` | Structure lint |
 | `show_plan` / `show_current_iteration` | Compact human skim (not a full dump) |
 
-Agent rule: prefer `get_current_iteration` / `get_iteration` over reading all of PLAN.md.
-If no plan exists → `create_plan` first.
-
 ---
 
 ## Managed plan format
@@ -136,24 +137,73 @@ If no plan exists → `create_plan` first.
 | Tasks | `- [ ]` / `- [x]` |
 | Backlog | `## Backlog` |
 
-Phase-like headers and other prose are **preserved as opaque blocks** (tolerant
-reader). See PRD for principles (single writer, no evidence journal in the tool).
+Phase-like headers and other prose are **preserved as opaque blocks**.
 
 ---
 
-## Development
+## From source
+
+Clone, editable install, or PowerSpawn submodule — for contributors.
 
 ```bash
+git clone https://github.com/CynaCons/powerplan.git
+cd powerplan
 pip install -e ".[dev]"
-pytest -q
-python -m powerplan   # stdio MCP (use with an MCP client)
+python -m powerplan          # same stdio server
+# or: powerplan-mcp
 ```
 
-Landing page:
+PowerSpawn can vendor this repo as a git submodule. Register **both** MCP
+servers — they do not merge:
+
+```json
+{
+  "mcpServers": {
+    "powerplan": {
+      "command": "uvx",
+      "args": ["powerplan-mcp"]
+    },
+    "powerspawn": {
+      "command": "python",
+      "args": ["-m", "powerspawn.mcp_server"]
+    }
+  }
+}
+```
+
+Path-only (no install): `python /path/to/powerplan/powerplan_server.py`
+
+Landing page: `cd site && npm ci && npm run dev`
+
+---
+
+## Releasing (maintainers)
+
+Versions live in `pyproject.toml`, `powerplan/__init__.py`, and `server.json`.
+Keep them equal.
+
+**PyPI** uses GitHub Actions trusted publishing (no API token in the repo).
+
+1. One-time: on [PyPI publishing](https://pypi.org/manage/account/publishing/)
+   add a **pending publisher**:
+   - Project name: `powerplan-mcp`
+   - Owner: `CynaCons`
+   - Repository: `powerplan`
+   - Workflow name: `publish.yml`
+   - Environment: *(leave empty)*
+2. Tag and push: `git tag v0.6.1 && git push origin v0.6.1`
+3. `.github/workflows/publish.yml` builds, uploads to PyPI, then publishes
+   `server.json` to the official MCP Registry via `mcp-publisher login github-oidc`.
+
+Manual registry publish (after the wheel is on PyPI):
 
 ```bash
-cd site && npm ci && npm run dev
+mcp-publisher login github
+mcp-publisher publish
 ```
+
+`mcp-publisher` verifies `mcp-name: io.github.cynacons/powerplan` in the PyPI
+README, so that string must stay in this file.
 
 ---
 

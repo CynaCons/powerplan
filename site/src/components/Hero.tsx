@@ -32,7 +32,7 @@ function Copy({ text }: { text: string }) {
 }
 
 export function Hero() {
-  const install = 'pip install -e ".[dev]"  # or: python -m powerplan'
+  const install = 'uvx powerplan-mcp'
 
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
@@ -96,6 +96,12 @@ export function Hero() {
             View on GitHub
           </a>
           <a
+            href="https://pypi.org/project/powerplan-mcp/"
+            className="px-6 py-3 rounded-lg border border-slate-600 hover:border-slate-400 font-semibold transition-colors"
+          >
+            PyPI
+          </a>
+          <a
             href="#examples"
             className="px-6 py-3 rounded-lg border border-slate-600 hover:border-slate-400 font-semibold transition-colors"
           >
@@ -140,7 +146,7 @@ export function Hero() {
             <code className="px-3 py-2 rounded-lg bg-[var(--pp-card)] border border-slate-700 mono text-slate-300 text-xs md:text-sm">
               {install}
             </code>
-            <Copy text="pip install -e .[dev]" />
+            <Copy text="uvx powerplan-mcp" />
           </div>
         </motion.div>
       </div>

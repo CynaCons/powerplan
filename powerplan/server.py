@@ -1,8 +1,8 @@
 """
-powerplan MCP server v0.2.2
+powerplan MCP server
 
 Standalone MCP: PLAN.md as the operational backbone of agentic development.
-Server name: ``powerplan``.
+Server name: ``powerplan``. Public package name: ``powerplan-mcp``.
 
 Every tool accepts optional ``plan_path`` (relative or absolute). Default:
 walk up from cwd to nearest PLAN.md. Use ``create_plan`` when none exists.
@@ -20,6 +20,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from powerplan import __version__ as SERVER_VERSION
 from powerplan.discovery import find_plan_md, load_plan, resolve_plan_path
 from powerplan import mutations as mut
 from powerplan.views import (
@@ -35,8 +36,6 @@ from powerplan.views import (
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
-SERVER_VERSION = "0.2.2"
 
 try:
     from mcp.server import Server

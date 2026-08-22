@@ -48,11 +48,7 @@ heavy deps.
 - [x] Dogfood switch: this PLAN.md now operated via powerplan tools only
 - [x] Smoke test: full iteration lifecycle driven through tools; `check_plan` green
 
-### v0.1.4 — Packaging + adoption
-- [ ] README agent guide: preferred tools (`get_current_iteration` / `get_iteration` first; avoid full-file reads)
-- [ ] MCP registration snippets (`.mcp.json` / `claude mcp add`) for projects
-- [ ] Install in two reference projects; agent-docs rule that powerplan is the sanctioned PLAN.md writer
-- [ ] Smoke test: a coordinator agent drives one real iteration via powerplan only
+### v0.1.4 — Packaging + adoption (absorbed into v0.6) (COMPLETE)
 
 ## v0.2 — Plan path + bootstrap (no PLAN.md yet)
 
@@ -135,6 +131,37 @@ heavy deps.
 - [x] `defer_task(version, task?, index?, reason?)` — move task to backlog with optional reason suffix
 - [x] Retrofit optional `index` onto `complete_task` / `reopen_task`; expose 1-based `index` in `get_iteration` payload
 - [x] Tests: index/text equivalence, `expect` mismatch refuses edit, ambiguous text error, defer round-trip, agent tags preserved
+
+## v0.6 — Public distribution
+> Stranger-installable package: PyPI name `powerplan-mcp` (PyPI `powerplan` is taken), `uvx` entry, official MCP Registry listing, README/site rewritten for people who have never seen this repo.
+
+### v0.6.0 — PyPI package `powerplan-mcp` + uvx entry (2026-08-22) (COMPLETE)
+**Goal:** Publishable Python package a stranger can run with `uvx powerplan-mcp`. Keep MCP server name and import as `powerplan`. PyPI project name cannot be `powerplan` (taken by a Windows powercfg wrapper).
+- [x] PyPI project name `powerplan-mcp` (PyPI `powerplan` is taken); keep Python import and MCP server name `powerplan` [agent: grok-4.6]
+- [x] Console script `powerplan-mcp` so `uvx powerplan-mcp` starts the stdio server [agent: grok-4.6]
+- [x] pyproject.toml: classifiers, keywords, project.urls; version string matches the release we will tag [agent: grok-4.6]
+- [x] Smoke: `python -m powerplan` and `powerplan-mcp` both speak MCP stdio (list_tools) [agent: grok-4.6]
+
+### v0.6.1 — Official MCP Registry listing (current) (ACTIVE)
+**Goal:** List `io.github.cynacons/powerplan` on the official MCP Registry so clients and aggregators can discover it. Requires the PyPI package from v0.6.0.
+- [x] `server.json` for `io.github.cynacons/powerplan` pointing at the PyPI package, stdio transport [agent: grok-4.6]
+- [x] README includes `mcp-name: io.github.cynacons/powerplan` (PyPI ownership proof for the registry) [agent: grok-4.6]
+- [x] Document `mcp-publisher login github` + `publish` for maintainers [agent: grok-4.6]
+- [ ] Publish to the official MCP Registry once the PyPI package is live [agent: grok-4.6]
+
+### v0.6.2 — README + site for strangers (2026-08-22) (COMPLETE)
+**Goal:** Lead with a 30-second install path. Clone, editable install, and PowerSpawn submodule move under “from source.” Absorb leftover v0.1.4 agent-guide and MCP snippet work.
+- [x] README rewrite: `uvx powerplan-mcp` first; clone / editable / PowerSpawn under from-source [agent: grok-4.6]
+- [x] Agent guide: prefer `get_current_iteration` / `get_iteration`; `create_plan` if missing; avoid full-file reads [agent: grok-4.6]
+- [x] MCP snippets: Claude Code `.mcp.json`, Claude Desktop, Cursor, Grok (`uvx` / `uv run --with`) [agent: grok-4.6]
+- [x] Site hero + Integration: replace `pip install -e ".[dev]"` with the public `uvx` path [agent: grok-4.6]
+
+### v0.6.3 — Release, changelog, optional dogfood
+**Goal:** Tagged public release with changelog and GitHub topics. Optional: install in two reference projects with the agent-docs rule that powerplan is the sanctioned PLAN.md writer.
+- [x] CHANGELOG.md covering shipped versions through this release [agent: grok-4.6]
+- [ ] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
+- [x] Optional: tag → PyPI publish workflow [agent: grok-4.6]
+- [ ] Optional: install in two reference projects; agent-docs rule that powerplan is the sanctioned PLAN.md writer [agent: grok-4.6]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)

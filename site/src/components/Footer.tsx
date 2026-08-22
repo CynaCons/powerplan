@@ -10,6 +10,9 @@ export function Footer() {
           <a href="https://github.com/CynaCons/powerplan" className="hover:text-sky-400">
             GitHub
           </a>
+          <a href="https://pypi.org/project/powerplan-mcp/" className="hover:text-sky-400">
+            PyPI
+          </a>
           <a href="https://github.com/CynaCons/powerplan/blob/main/PRD.md" className="hover:text-sky-400">
             PRD
           </a>

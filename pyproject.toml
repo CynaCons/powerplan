@@ -3,14 +3,27 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "powerplan"
-version = "0.5.1"
+name = "powerplan-mcp"
+version = "0.6.0"
 description = "MCP server that makes PLAN.md the operational backbone of agentic development"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "CynaCons" }]
-keywords = ["mcp", "plan", "agents", "PLAN.md", "orchestration"]
+keywords = ["mcp", "mcp-server", "plan", "agents", "PLAN.md", "orchestration"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development",
+  "Typing :: Typed",
+]
 dependencies = [
   "mcp>=1.0.0",
 ]
@@ -19,12 +32,15 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
+powerplan-mcp = "powerplan.server:run_sync"
 powerplan = "powerplan.server:run_sync"
 
 [project.urls]
 Homepage = "https://github.com/CynaCons/powerplan"
 Repository = "https://github.com/CynaCons/powerplan"
 Documentation = "https://cynacons.github.io/powerplan/"
+Issues = "https://github.com/CynaCons/powerplan/issues"
+Changelog = "https://github.com/CynaCons/powerplan/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["powerplan*"]
