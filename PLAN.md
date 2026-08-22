@@ -159,7 +159,7 @@ heavy deps.
 ### v0.6.3 — Release, changelog, optional dogfood
 **Goal:** Tagged public release with changelog and GitHub topics. Optional: install in two reference projects with the agent-docs rule that powerplan is the sanctioned PLAN.md writer.
 - [x] CHANGELOG.md covering shipped versions through this release [agent: grok-4.6]
-- [ ] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
+- [x] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
 - [x] Optional: tag → PyPI publish workflow [agent: grok-4.6]
 - [ ] Optional: install in two reference projects; agent-docs rule that powerplan is the sanctioned PLAN.md writer [agent: grok-4.6]
 
