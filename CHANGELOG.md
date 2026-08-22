@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1 — 2026-08-22
+
+- MCP Registry namespace is `io.github.CynaCons/powerplan` (GitHub org casing;
+  lowercase `cynacons` is rejected by OIDC).
+
 ## 0.6.0 — 2026-08-22
 
 Public distribution.

@@ -1,4 +1,4 @@
-<!-- mcp-name: io.github.cynacons/powerplan -->
+<!-- mcp-name: io.github.CynaCons/powerplan -->
 
 # powerplan
 
@@ -9,14 +9,14 @@ coordinators and worker agents a human-language API over your project’s
 `PLAN.md`: show progress, create iterations, complete tasks, keep the header
 truthful — without freeform file thrash.
 
-mcp-name: io.github.cynacons/powerplan
+mcp-name: io.github.CynaCons/powerplan
 
 | | |
 |---|---|
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
-| **Registry** | `io.github.cynacons/powerplan` |
-| **Status** | v0.6.0 — public package + registry listing ([PLAN.md](PLAN.md)) |
+| **Registry** | `io.github.CynaCons/powerplan` |
+| **Status** | v0.6.1 — public package + registry listing ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
@@ -202,7 +202,7 @@ mcp-publisher login github
 mcp-publisher publish
 ```
 
-`mcp-publisher` verifies `mcp-name: io.github.cynacons/powerplan` in the PyPI
+`mcp-publisher` verifies `mcp-name: io.github.CynaCons/powerplan` in the PyPI
 README, so that string must stay in this file.
 
 ---

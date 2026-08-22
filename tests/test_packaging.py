@@ -12,7 +12,7 @@ from powerplan.server import SERVER_VERSION, list_tools, run_sync
 
 
 def test_package_version_aligned():
-    assert __version__ == "0.6.0"
+    assert __version__ == "0.6.1"
     assert SERVER_VERSION == __version__
 
 
@@ -38,7 +38,7 @@ def test_list_tools_exposes_agent_entrypoints():
 
 def test_server_json_registry_manifest():
     data = json.loads((Path(__file__).resolve().parents[1] / "server.json").read_text(encoding="utf-8"))
-    assert data["name"] == "io.github.cynacons/powerplan"
+    assert data["name"] == "io.github.CynaCons/powerplan"
     pkg = data["packages"][0]
     assert pkg["registryType"] == "pypi"
     assert pkg["identifier"] == "powerplan-mcp"
@@ -49,4 +49,4 @@ def test_server_json_registry_manifest():
 
 def test_readme_contains_mcp_name_proof():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
-    assert "mcp-name: io.github.cynacons/powerplan" in readme
+    assert "mcp-name: io.github.CynaCons/powerplan" in readme
