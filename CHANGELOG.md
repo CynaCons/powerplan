@@ -10,6 +10,7 @@ Public distribution.
 - `server.json` for official MCP Registry namespace `io.github.cynacons/powerplan`.
 - README and site lead with the public install path.
 - Tag-triggered publish workflow: PyPI trusted publishing, then `mcp-publisher`.
+- Pin the Python MCP SDK to `mcp>=1.0.0,<2` (v2 changed the Server API).
 
 ## 0.5.1 — 2026-08-10
 
