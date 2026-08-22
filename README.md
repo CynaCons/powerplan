@@ -179,31 +179,12 @@ Landing page: `cd site && npm ci && npm run dev`
 
 ## Releasing (maintainers)
 
-Versions live in `pyproject.toml`, `powerplan/__init__.py`, and `server.json`.
-Keep them equal.
+Full procedure, identities, and failure history: **[docs/RELEASING.md](docs/RELEASING.md)**.
+Agent checklist: project skill `release-powerplan` (`/release-powerplan`).
 
-**PyPI** uses GitHub Actions trusted publishing (no API token in the repo).
-
-1. One-time: on [PyPI publishing](https://pypi.org/manage/account/publishing/)
-   add a **pending publisher**:
-   - Project name: `powerplan-mcp`
-   - Owner: `CynaCons`
-   - Repository: `powerplan`
-   - Workflow name: `publish.yml`
-   - Environment: *(leave empty)*
-2. Tag and push: `git tag v0.6.1 && git push origin v0.6.1`
-3. `.github/workflows/publish.yml` builds, uploads to PyPI, then publishes
-   `server.json` to the official MCP Registry via `mcp-publisher login github-oidc`.
-
-Manual registry publish (after the wheel is on PyPI):
-
-```bash
-mcp-publisher login github
-mcp-publisher publish
-```
-
-`mcp-publisher` verifies `mcp-name: io.github.CynaCons/powerplan` in the PyPI
-README, so that string must stay in this file.
+Short path: bump every version file listed in that guide → `pytest -q` → tag
+`vX.Y.Z` → push the tag. `.github/workflows/publish.yml` uploads `powerplan-mcp`
+to PyPI, then `server.json` to the MCP Registry as `io.github.CynaCons/powerplan`.
 
 ---
 

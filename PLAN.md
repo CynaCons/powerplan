@@ -162,6 +162,7 @@ heavy deps.
 - [x] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
 - [x] Optional: tag → PyPI publish workflow [agent: grok-4.6]
 - [ ] Optional: install in two reference projects; agent-docs rule that powerplan is the sanctioned PLAN.md writer [agent: grok-4.6]
+- [x] Maintainer release guide (docs/RELEASING.md) + project skill for future MCP publishes [agent: grok-4.6]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
