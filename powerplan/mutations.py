@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 import threading
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 
 from .plan_model import (
     BacklogItem,
@@ -37,6 +37,7 @@ from .plan_writer import write_node, write_plan, write_plan_file
 _EM = "—"
 
 _file_lock = threading.Lock()
+_BATCH_CAP = 100
 
 
 def _nl(text: str) -> str:
@@ -407,6 +408,34 @@ def add_task(
     return task
 
 
+def add_tasks(
+    plan: Plan,
+    version: str,
+    texts: Sequence[str],
+    *,
+    done: bool = False,
+    agent: Optional[str] = None,
+) -> List[Task]:
+    """
+    Append several checkbox tasks in one mutation (order preserved).
+
+    Shared ``done`` / ``agent`` apply to every item. Empty list or any
+    blank item refuses the whole batch so the writer never records a
+    partial add.
+    """
+    if texts is None:
+        raise ValueError("tasks must be a non-empty list of strings")
+    items = list(texts)
+    if not items:
+        raise ValueError("tasks must be a non-empty list of strings")
+    for i, raw in enumerate(items, start=1):
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError(f"tasks[{i}] must be a non-empty string")
+    if plan.find_iteration(version) is None:
+        raise ValueError(f"Iteration not found: {version}")
+    return [add_task(plan, version, text, done=done, agent=agent) for text in items]
+
+
 def _trailing_blank_run(nodes: List) -> int:
     """Index of the first node in the trailing run of blank-only prose."""
     idx = len(nodes)
@@ -498,6 +527,110 @@ def _resolve_task(
     return found
 
 
+def _normalize_address(
+    *,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+    expect: Optional[str] = None,
+) -> tuple[Optional[List[int]], Optional[List[str]], Optional[str]]:
+    """
+    Fold scalar ``index``/``task`` into lists. Exactly one addressing mode.
+
+    ``expect`` is only valid for a singular scalar address, not for ``indexes``
+    / ``tasks`` arrays.
+    """
+    has_index = index is not None
+    has_indexes = indexes is not None
+    has_task = task is not None and str(task).strip() != ""
+    has_tasks = tasks is not None
+
+    if has_index and has_indexes:
+        raise ValueError("Pass either index or indexes, not both")
+    if has_task and has_tasks:
+        raise ValueError("Pass either task or tasks, not both")
+    index_mode = has_index or has_indexes
+    text_mode = has_task or has_tasks
+    if index_mode and text_mode:
+        raise ValueError("Pass either index/indexes or task/tasks, not both")
+    if not index_mode and not text_mode:
+        raise ValueError(
+            "One of task or index is required (or tasks/indexes for several)"
+        )
+    if expect is not None and (has_indexes or has_tasks):
+        raise ValueError("expect is only valid when addressing a single task")
+
+    idx_list: Optional[List[int]] = None
+    task_list: Optional[List[str]] = None
+    if has_index:
+        idx_list = [index]  # type: ignore[list-item]
+    elif has_indexes:
+        idx_list = list(indexes)  # type: ignore[arg-type]
+        if not idx_list:
+            raise ValueError("indexes must be a non-empty list")
+    elif has_task:
+        task_list = [str(task)]
+    else:
+        task_list = list(tasks)  # type: ignore[arg-type]
+        if not task_list:
+            raise ValueError("tasks must be a non-empty list of strings")
+        for i, raw in enumerate(task_list, start=1):
+            if not isinstance(raw, str) or not raw.strip():
+                raise ValueError(f"tasks[{i}] must be a non-empty string")
+
+    n = len(idx_list or task_list or [])
+    if n > _BATCH_CAP:
+        raise ValueError(f"batch size {n} exceeds cap of {_BATCH_CAP}")
+    return idx_list, task_list, expect
+
+
+def _resolve_many(
+    it: Iteration,
+    *,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+    expect: Optional[str] = None,
+) -> List[tuple[int, Task]]:
+    """
+    Resolve every address against the current task list before any mutation.
+
+    Returns (original 1-based index, task) in caller order. Duplicate targets
+    (same Task identity) are an error so remove/defer cannot be applied twice.
+    """
+    idx_list, task_list, expect = _normalize_address(
+        task=task, index=index, tasks=tasks, indexes=indexes, expect=expect
+    )
+    found: List[tuple[int, Task]] = []
+    seen: set[int] = set()
+    singular_expect = expect if (idx_list and len(idx_list) == 1) or (
+        task_list and len(task_list) == 1
+    ) else None
+
+    if idx_list is not None:
+        for raw in idx_list:
+            t = _resolve_task(it, index=raw, expect=singular_expect)
+            ident = id(t)
+            if ident in seen:
+                raise ValueError(f"duplicate target in {it.version}: index {raw}")
+            seen.add(ident)
+            found.append((int(raw), t))
+        return found
+
+    assert task_list is not None
+    pos = {id(x): i for i, x in enumerate(it.tasks, start=1)}
+    for raw in task_list:
+        t = _resolve_task(it, task=raw, expect=singular_expect)
+        ident = id(t)
+        if ident in seen:
+            raise ValueError(f"duplicate target in {it.version}: {raw!r}")
+        seen.add(ident)
+        found.append((pos[ident], t))
+    return found
+
+
 def _iteration_or_raise(plan: Plan, version: str) -> Iteration:
     it = plan.find_iteration(version)
     if it is None:
@@ -516,28 +649,85 @@ def _drop_task(it: Iteration, target: Task) -> None:
     it.body = [n for n in it.body if n is not target]
 
 
-def update_task(
-    plan: Plan,
-    version: str,
-    *,
-    text: str,
-    task: Optional[str] = None,
-    index: Optional[int] = None,
-    expect: Optional[str] = None,
-    agent: Optional[str] = None,
-) -> Task:
-    """Rewrite a task's text in place, preserving its done state."""
-    it = _iteration_or_raise(plan, version)
-    t = _resolve_task(it, task=task, index=index, expect=expect)
+def _rewrite_task(t: Task, *, text: str, agent: Optional[str]) -> Task:
     new_text = "" if text is None else str(text)
     if not new_text.strip():
         raise ValueError("text must be a non-empty string")
     base = _strip_agent_tag(new_text)
-    # Keep whatever agent tag the line already carried unless one is supplied
     tag = agent if agent is not None else _existing_agent(t.text)
     t.text = base + _agent_suffix(tag)
     t.raw = format_task_line(base, done=t.done, agent=tag)
     return t
+
+
+def _set_task_done(t: Task, done: bool, agent: Optional[str]) -> Task:
+    t.done = done
+    base = _strip_agent_tag(t.text)
+    if done:
+        if agent:
+            t.text = base + _agent_suffix(agent)
+        else:
+            t.text = base
+        t.raw = format_task_line(base, done=True, agent=agent)
+    else:
+        t.text = base + (_agent_suffix(agent) if agent else "")
+        t.raw = format_task_line(base, done=False, agent=agent)
+    return t
+
+
+def update_task(
+    plan: Plan,
+    version: str,
+    *,
+    text: Optional[str] = None,
+    task: Optional[str] = None,
+    index: Optional[int] = None,
+    expect: Optional[str] = None,
+    agent: Optional[str] = None,
+    changes: Optional[Sequence] = None,
+) -> List[tuple[int, Task]]:
+    """Rewrite task text in place, preserving done state. One row or ``changes``."""
+    it = _iteration_or_raise(plan, version)
+    if changes is not None:
+        singular_used = any(
+            v is not None for v in (text, task, index, expect)
+        )
+        if singular_used:
+            raise ValueError("Pass either a single task update or changes, not both")
+        if not isinstance(changes, (list, tuple)) or not changes:
+            raise ValueError("changes must be a non-empty list")
+        if len(changes) > _BATCH_CAP:
+            raise ValueError(f"batch size {len(changes)} exceeds cap of {_BATCH_CAP}")
+        resolved: List[tuple[int, Task, str]] = []
+        seen: set[int] = set()
+        pos = {id(x): i for i, x in enumerate(it.tasks, start=1)}
+        for i, ch in enumerate(changes, start=1):
+            if not isinstance(ch, dict):
+                raise ValueError(f"changes[{i}] must be an object")
+            new_text = ch.get("text")
+            if new_text is None or not str(new_text).strip():
+                raise ValueError(f"changes[{i}].text must be a non-empty string")
+            t = _resolve_task(
+                it,
+                task=ch.get("task"),
+                index=ch.get("index"),
+                expect=ch.get("expect"),
+            )
+            ident = id(t)
+            if ident in seen:
+                raise ValueError(f"duplicate target in changes[{i}]")
+            seen.add(ident)
+            resolved.append((pos[ident], t, str(new_text)))
+        out: List[tuple[int, Task]] = []
+        for orig, t, new_text in resolved:
+            _rewrite_task(t, text=new_text, agent=agent)
+            out.append((orig, t))
+        return out
+
+    if text is None or not str(text).strip():
+        raise ValueError("text must be a non-empty string")
+    pairs = _resolve_many(it, task=task, index=index, expect=expect)
+    return [(orig, _rewrite_task(t, text=text, agent=agent)) for orig, t in pairs]
 
 
 def remove_task(
@@ -547,12 +737,17 @@ def remove_task(
     task: Optional[str] = None,
     index: Optional[int] = None,
     expect: Optional[str] = None,
-) -> Task:
-    """Delete a task from an iteration (both the task list and the body)."""
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+) -> List[tuple[int, Task]]:
+    """Delete one or many tasks (task list and body). Resolve all, then drop."""
     it = _iteration_or_raise(plan, version)
-    t = _resolve_task(it, task=task, index=index, expect=expect)
-    _drop_task(it, t)
-    return t
+    pairs = _resolve_many(
+        it, task=task, index=index, expect=expect, tasks=tasks, indexes=indexes
+    )
+    for _, t in pairs:
+        _drop_task(it, t)
+    return pairs
 
 
 def defer_task(
@@ -564,18 +759,25 @@ def defer_task(
     reason: Optional[str] = None,
     expect: Optional[str] = None,
     agent: Optional[str] = None,
-) -> BacklogItem:
-    """Move a task out of its iteration and into the backlog."""
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+) -> List[tuple[int, Task, BacklogItem]]:
+    """Move one or many tasks out of an iteration and into the backlog."""
     it = _iteration_or_raise(plan, version)
-    t = _resolve_task(it, task=task, index=index, expect=expect)
-    base = _strip_agent_tag(t.text)
-    _drop_task(it, t)
-
+    pairs = _resolve_many(
+        it, task=task, index=index, expect=expect, tasks=tasks, indexes=indexes
+    )
     note = f"deferred from {it.version}"
     if reason and str(reason).strip():
         note = f"{note}: {str(reason).strip()}"
-    tag = agent if agent is not None else _existing_agent(t.text)
-    return add_to_backlog(plan, f"{base} ({note})", agent=tag)
+    out: List[tuple[int, Task, BacklogItem]] = []
+    for orig, t in pairs:
+        base = _strip_agent_tag(t.text)
+        _drop_task(it, t)
+        tag = agent if agent is not None else _existing_agent(t.text)
+        item = add_to_backlog(plan, f"{base} ({note})", agent=tag)
+        out.append((orig, t, item))
+    return out
 
 
 def complete_task(
@@ -586,17 +788,14 @@ def complete_task(
     index: Optional[int] = None,
     expect: Optional[str] = None,
     agent: Optional[str] = None,
-) -> Task:
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+) -> List[tuple[int, Task]]:
     it = _iteration_or_raise(plan, version)
-    t = _resolve_task(it, task=task, index=index, expect=expect)
-    t.done = True
-    base = _strip_agent_tag(t.text)
-    if agent:
-        t.text = base + _agent_suffix(agent)
-    else:
-        t.text = base
-    t.raw = format_task_line(base, done=True, agent=agent)
-    return t
+    pairs = _resolve_many(
+        it, task=task, index=index, expect=expect, tasks=tasks, indexes=indexes
+    )
+    return [(orig, _set_task_done(t, True, agent)) for orig, t in pairs]
 
 
 def reopen_task(
@@ -607,14 +806,14 @@ def reopen_task(
     index: Optional[int] = None,
     expect: Optional[str] = None,
     agent: Optional[str] = None,
-) -> Task:
+    tasks: Optional[Sequence[str]] = None,
+    indexes: Optional[Sequence[int]] = None,
+) -> List[tuple[int, Task]]:
     it = _iteration_or_raise(plan, version)
-    t = _resolve_task(it, task=task, index=index, expect=expect)
-    t.done = False
-    base = _strip_agent_tag(t.text)
-    t.text = base + (_agent_suffix(agent) if agent else "")
-    t.raw = format_task_line(base, done=False, agent=agent)
-    return t
+    pairs = _resolve_many(
+        it, task=task, index=index, expect=expect, tasks=tasks, indexes=indexes
+    )
+    return [(orig, _set_task_done(t, False, agent)) for orig, t in pairs]
 
 
 def add_iteration_prose(plan: Plan, version: str, text: str) -> None:
@@ -634,8 +833,13 @@ def ensure_backlog(plan: Plan, title: str = "Future (Backlog)") -> BacklogSectio
     return sec
 
 
-def add_to_backlog(
-    plan: Plan, text: str, *, agent: Optional[str] = None, checkbox: bool = False, done: bool = False
+def _append_backlog_item(
+    plan: Plan,
+    text: str,
+    *,
+    agent: Optional[str] = None,
+    checkbox: bool = False,
+    done: bool = False,
 ) -> BacklogItem:
     sec = ensure_backlog(plan)
     body = _strip_agent_tag(text) + _agent_suffix(agent)
@@ -647,6 +851,40 @@ def add_to_backlog(
     item = BacklogItem(text=body, raw=raw)
     sec.items.insert(_trailing_blank_run(sec.items), item)
     return item
+
+
+def add_to_backlog(
+    plan: Plan,
+    text: Optional[str] = None,
+    *,
+    texts: Optional[Sequence[str]] = None,
+    agent: Optional[str] = None,
+    checkbox: bool = False,
+    done: bool = False,
+):
+    """Append one backlog item (``text``) or many (``texts``) in one mutation."""
+    if text is not None and texts is not None:
+        raise ValueError("Pass either text or texts, not both")
+    if texts is not None:
+        items = list(texts)
+        if not items:
+            raise ValueError("texts must be a non-empty list of strings")
+        if len(items) > _BATCH_CAP:
+            raise ValueError(f"batch size {len(items)} exceeds cap of {_BATCH_CAP}")
+        for i, raw in enumerate(items, start=1):
+            if not isinstance(raw, str) or not raw.strip():
+                raise ValueError(f"texts[{i}] must be a non-empty string")
+        return [
+            _append_backlog_item(
+                plan, raw, agent=agent, checkbox=checkbox, done=done
+            )
+            for raw in items
+        ]
+    if text is None:
+        raise ValueError("text is required")
+    return _append_backlog_item(
+        plan, text, agent=agent, checkbox=checkbox, done=done
+    )
 
 
 def load_plan_for_mutation(plan_path: Union[str, Path]) -> Plan:

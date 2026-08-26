@@ -12,7 +12,7 @@ from powerplan.server import SERVER_VERSION, list_tools, run_sync
 
 
 def test_package_version_aligned():
-    assert __version__ == "0.6.1"
+    assert __version__ == "0.7.0"
     assert SERVER_VERSION == __version__
 
 
@@ -34,6 +34,7 @@ def test_list_tools_exposes_agent_entrypoints():
     assert "get_iteration" in names
     assert "create_plan" in names
     assert "create_iteration" in names
+    assert "add_tasks" in names
 
 
 def test_server_json_registry_manifest():

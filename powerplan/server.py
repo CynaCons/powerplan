@@ -64,23 +64,42 @@ _AGENT_PROP = {
         "description": "Optional agent id tag written as [agent: id] on touched lines.",
     }
 }
-# Shared task addressing: text match or 1-based ordinal, plus an optional
-# compare-and-swap guard. Exactly one of task/index per call.
+# Shared task addressing: one of task / index / tasks / indexes.
+# expect is singular-only (scalar task or index).
 _TASK_ADDRESS_PROPS = {
     "task": {
         "type": "string",
-        "description": "Task text (exact, else unique substring). One of task/index.",
+        "description": "One task (exact, else unique substring). One addressing mode.",
     },
     "index": {
         "type": "integer",
         "minimum": 1,
-        "description": "1-based position within the iteration. One of task/index.",
+        "description": "One 1-based position. One addressing mode.",
+    },
+    "tasks": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "string"},
+        "description": (
+            "Several task texts (exact, else unique substring). "
+            "One write. One addressing mode."
+        ),
+    },
+    "indexes": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "integer", "minimum": 1},
+        "description": (
+            "Several 1-based positions. Prefer this after get_iteration. "
+            "One write. One addressing mode."
+        ),
     },
     "expect": {
         "type": "string",
         "description": (
-            "Optional guard: current task text must match or the edit is refused. "
-            "Agent tags are ignored in the comparison."
+            "Optional guard for a single task: current text must match or the "
+            "edit is refused. Ignored/rejected with tasks/indexes. Agent tags "
+            "are ignored in the comparison."
         ),
     },
 }
@@ -114,6 +133,29 @@ def _mutate(arguments: dict[str, Any], fn: Callable) -> list:
         path=str(path),
         iterations=len(plan.all_iterations()),
         message="plan updated",
+    )
+
+
+def _mutate_result(arguments: dict[str, Any], fn: Callable):
+    """Load → mutator(plan) → save; return (plan, mutator_return, path)."""
+    path = _resolve_existing(arguments)
+    holder: dict[str, Any] = {}
+
+    def wrapped(p):
+        holder["r"] = fn(p)
+
+    plan = mut.mutate_and_save(path, wrapped, allow_create=False)
+    return plan, holder.get("r"), path
+
+
+def _pairs_ok(path, version: str, verb: str, pairs) -> list:
+    rows = [{"index": i, "text": t.text, "done": t.done} for i, t in pairs]
+    return _ok(
+        path=str(path),
+        version=version,
+        updated=len(rows),
+        tasks=rows,
+        message=f"{verb} {len(rows)} task(s)",
     )
 
 
@@ -275,8 +317,39 @@ async def list_tools() -> list:
             },
         ),
         Tool(
+            name="add_tasks",
+            description=(
+                "Append several checkbox tasks in one write. Prefer this over "
+                "repeated add_task. Shared done/agent apply to every item."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["version", "tasks"],
+                "properties": {
+                    "version": {"type": "string"},
+                    "tasks": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"type": "string"},
+                        "description": "Task texts to append, in order.",
+                    },
+                    "done": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Mark every added task done (default false).",
+                    },
+                    **_PLAN_PATH_PROP,
+                    **_AGENT_PROP,
+                },
+            },
+        ),
+        Tool(
             name="complete_task",
-            description="Tick a task checkbox (substring match, or index).",
+            description=(
+                "Tick one or many tasks in one write. For several, pass indexes "
+                "(preferred after get_iteration) or tasks. For exactly one, "
+                "index or task still work."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["version"],
@@ -290,7 +363,10 @@ async def list_tools() -> list:
         ),
         Tool(
             name="reopen_task",
-            description="Untick a task checkbox (substring match, or index).",
+            description=(
+                "Untick one or many tasks in one write. For several, pass "
+                "indexes or tasks. For exactly one, index or task still work."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["version"],
@@ -305,15 +381,33 @@ async def list_tools() -> list:
         Tool(
             name="update_task",
             description=(
-                "Rewrite a task's text, preserving its done state. Address it by "
-                "`task` substring or 1-based `index` (see get_iteration)."
+                "Rewrite task text, preserving done state. One task: text + "
+                "index/task. Several: changes[{text, index|task, expect?}]."
             ),
             inputSchema={
                 "type": "object",
-                "required": ["version", "text"],
+                "required": ["version"],
                 "properties": {
                     "version": {"type": "string"},
-                    "text": {"type": "string", "description": "New task text."},
+                    "text": {"type": "string", "description": "New text for a single task."},
+                    "changes": {
+                        "type": "array",
+                        "minItems": 1,
+                        "description": (
+                            "Several rewrites in one write. Do not mix with the "
+                            "singular text + index/task shape."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "required": ["text"],
+                            "properties": {
+                                "text": {"type": "string"},
+                                "index": {"type": "integer", "minimum": 1},
+                                "task": {"type": "string"},
+                                "expect": {"type": "string"},
+                            },
+                        },
+                    },
                     **_TASK_ADDRESS_PROPS,
                     **_PLAN_PATH_PROP,
                     **_AGENT_PROP,
@@ -322,7 +416,10 @@ async def list_tools() -> list:
         ),
         Tool(
             name="remove_task",
-            description="Delete a task from an iteration.",
+            description=(
+                "Delete one or many tasks in one write. For several, pass "
+                "indexes or tasks. Resolve-all then drop (indexes do not shift)."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["version"],
@@ -335,7 +432,10 @@ async def list_tools() -> list:
         ),
         Tool(
             name="defer_task",
-            description="Move a task out of its iteration and into the backlog.",
+            description=(
+                "Move one or many tasks to the backlog in one write. For several, "
+                "pass indexes or tasks. Shared reason/agent apply to every item."
+            ),
             inputSchema={
                 "type": "object",
                 "required": ["version"],
@@ -353,12 +453,20 @@ async def list_tools() -> list:
         ),
         Tool(
             name="add_to_backlog",
-            description="Append an item to Future (Backlog).",
+            description=(
+                "Append one (text) or many (texts) items to Future (Backlog) "
+                "in one write."
+            ),
             inputSchema={
                 "type": "object",
-                "required": ["text"],
                 "properties": {
-                    "text": {"type": "string"},
+                    "text": {"type": "string", "description": "One backlog item."},
+                    "texts": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"type": "string"},
+                        "description": "Several backlog items, in order. One write.",
+                    },
                     "checkbox": {"type": "boolean", "default": False},
                     **_PLAN_PATH_PROP,
                     **_AGENT_PROP,
@@ -499,6 +607,35 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list:
                     p, ver, text, done=bool(args.get("done", False)), agent=args.get("agent")
                 ),
             )
+        if name == "add_tasks":
+            ver, tasks = args.get("version"), args.get("tasks")
+            if not ver:
+                return _err("version is required")
+            if not isinstance(tasks, list) or not tasks:
+                return _err("tasks must be a non-empty list of strings")
+            plan, added, path = _mutate_result(
+                args,
+                lambda p: mut.add_tasks(
+                    p,
+                    ver,
+                    tasks,
+                    done=bool(args.get("done", False)),
+                    agent=args.get("agent"),
+                ),
+            )
+            it = plan.find_iteration(ver)
+            n = len(added or [])
+            start_idx = (it.total_count - n + 1) if it is not None else 1
+            return _ok(
+                path=str(path),
+                version=ver,
+                added=n,
+                tasks=[
+                    {"index": start_idx + i, "text": t.text, "done": t.done}
+                    for i, t in enumerate(added or [])
+                ],
+                message=f"added {n} task(s)",
+            )
         if name in ("complete_task", "reopen_task", "update_task", "remove_task", "defer_task"):
             ver = args.get("version")
             if not ver:
@@ -507,39 +644,91 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list:
                 "task": args.get("task"),
                 "index": args.get("index"),
                 "expect": args.get("expect"),
+                "tasks": args.get("tasks"),
+                "indexes": args.get("indexes"),
             }
-            if addr["task"] is None and addr["index"] is None:
-                return _err("one of task or index is required")
-            if addr["task"] is not None and addr["index"] is not None:
-                return _err("pass either task or index, not both")
+            singular = {
+                "task": addr["task"],
+                "index": addr["index"],
+                "expect": addr["expect"],
+            }
+
+            if name == "update_task":
+                changes = args.get("changes")
+                if changes is not None:
+                    _, result, path = _mutate_result(
+                        args,
+                        lambda p: mut.update_task(
+                            p, ver, changes=changes, agent=args.get("agent")
+                        ),
+                    )
+                    return _pairs_ok(path, ver, "updated", result)
+                if addr["tasks"] is not None or addr["indexes"] is not None:
+                    return _err("for several updates, pass changes (not tasks/indexes)")
+                text = args.get("text")
+                if text is None or str(text).strip() == "":
+                    return _err("text is required (or pass changes)")
+                _, result, path = _mutate_result(
+                    args,
+                    lambda p: mut.update_task(
+                        p, ver, text=text, agent=args.get("agent"), **singular
+                    ),
+                )
+                return _pairs_ok(path, ver, "updated", result)
 
             if name == "complete_task":
                 fn = lambda p: mut.complete_task(p, ver, agent=args.get("agent"), **addr)
+                verb = "completed"
             elif name == "reopen_task":
                 fn = lambda p: mut.reopen_task(p, ver, agent=args.get("agent"), **addr)
-            elif name == "update_task":
-                text = args.get("text")
-                if text is None or str(text).strip() == "":
-                    return _err("text is required")
-                fn = lambda p: mut.update_task(
-                    p, ver, text=text, agent=args.get("agent"), **addr
-                )
+                verb = "reopened"
             elif name == "remove_task":
                 fn = lambda p: mut.remove_task(p, ver, **addr)
+                verb = "removed"
             else:  # defer_task
                 fn = lambda p: mut.defer_task(
                     p, ver, reason=args.get("reason"), agent=args.get("agent"), **addr
                 )
-            return _mutate(args, fn)
+                verb = "deferred"
+
+            _, result, path = _mutate_result(args, fn)
+            if name == "defer_task":
+                rows = [
+                    {"index": i, "text": t.text, "done": t.done}
+                    for i, t, _item in result
+                ]
+                backlog = [{"text": item.text} for _i, _t, item in result]
+                return _ok(
+                    path=str(path),
+                    version=ver,
+                    updated=len(rows),
+                    tasks=rows,
+                    backlog=backlog,
+                    message=f"{verb} {len(rows)} task(s)",
+                )
+            return _pairs_ok(path, ver, verb, result)
         if name == "add_to_backlog":
-            text = args.get("text")
-            if text is None:
-                return _err("text is required")
-            return _mutate(
+            text, texts = args.get("text"), args.get("texts")
+            if text is not None and texts is not None:
+                return _err("pass either text or texts, not both")
+            if text is None and texts is None:
+                return _err("text or texts is required")
+            _, result, path = _mutate_result(
                 args,
                 lambda p: mut.add_to_backlog(
-                    p, text, agent=args.get("agent"), checkbox=bool(args.get("checkbox", False))
+                    p,
+                    text=text,
+                    texts=texts,
+                    agent=args.get("agent"),
+                    checkbox=bool(args.get("checkbox", False)),
                 ),
+            )
+            items = result if isinstance(result, list) else [result]
+            return _ok(
+                path=str(path),
+                added=len(items),
+                backlog=[{"text": i.text} for i in items],
+                message=f"added {len(items)} backlog item(s)",
             )
         if name == "append_prose":
             text = args.get("text")

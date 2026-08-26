@@ -84,9 +84,9 @@ Iterations (and majors, when present) are the structural units tools operate on.
 |---|---|
 | `create_iteration(version, title, goal?, agent?)` | New iteration section, correct position, version monotonicity enforced |
 | `set_iteration_goal(version, goal, agent?)` | Set/replace the **Goal:** line |
-| `add_task(version, text, agent?)` / `update_task` / `remove_task` | Checkbox task CRUD |
-| `add_to_backlog(text, agent?)` | Append to backlog section |
-| `defer_task(version, task, to, reason?, agent?)` | Move to backlog/another iteration |
+| `add_task(version, text, agent?)` / `add_tasks(version, tasks, agent?)` / `update_task` / `remove_task` | Checkbox task CRUD; `add_tasks` appends many; `update_task(changes)` / `remove_task(indexes)` for several in one write |
+| `add_to_backlog(text, agent?)` / `texts[]` | Append one or many backlog items |
+| `defer_task(version, task, to, reason?, agent?)` | Move one or many (`indexes`/`tasks`) to backlog |
 
 Optional `agent` on any mutation that touches a line: append/update a trailing
 `[agent: <id>]` tag on that line when provided.
@@ -94,8 +94,8 @@ Optional `agent` on any mutation that touches a line: append/update a trailing
 ### Lifecycle
 | Tool | Behavior |
 |---|---|
-| `complete_task(version, task, agent?)` | Tick the task; optional agent tag. No evidence parameter. |
-| `reopen_task(version, task, agent?)` | Untick the task (e.g. when a completion is invalidated) |
+| `complete_task(version, task, agent?)` | Tick one or many (`indexes`/`tasks`); optional agent tag. No evidence parameter. |
+| `reopen_task(version, task, agent?)` | Untick one or many (`indexes`/`tasks`) |
 | `start_iteration(version)` | Marks active; auto-syncs plan header |
 | `close_iteration(version, force?)` | Reports open tasks; requires `force=true` to close while any remain open; stamps date / status |
 

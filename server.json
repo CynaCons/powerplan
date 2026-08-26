@@ -3,7 +3,7 @@
   "name": "io.github.CynaCons/powerplan",
   "title": "powerplan",
   "description": "MCP server that makes PLAN.md the operational backbone of agentic development",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "websiteUrl": "https://cynacons.github.io/powerplan/",
   "repository": {
     "url": "https://github.com/CynaCons/powerplan",
@@ -14,7 +14,7 @@
     {
       "registryType": "pypi",
       "identifier": "powerplan-mcp",
-      "version": "0.6.1",
+      "version": "0.7.0",
       "registryBaseUrl": "https://pypi.org",
       "runtimeHint": "uvx",
       "transport": {

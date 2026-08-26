@@ -16,7 +16,7 @@ mcp-name: io.github.CynaCons/powerplan
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
 | **Registry** | `io.github.CynaCons/powerplan` |
-| **Status** | v0.6.1 — public package + registry listing ([PLAN.md](PLAN.md)) |
+| **Status** | v0.7.0 — batch mutations ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
@@ -93,7 +93,7 @@ Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 1. If tools fail with “no PLAN.md” → `create_plan` first.
 2. `get_current_iteration` — what to work on now (JSON).
 3. `get_iteration(version)` — one iteration’s tasks and progress.
-4. Mutate with `add_task` / `complete_task` / `start_iteration` / `close_iteration`.
+4. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
 5. `show_plan` is a human skim, not a dump.
 
 Every tool accepts optional `plan_path` (relative or absolute). Default: walk up
@@ -119,8 +119,8 @@ without proof, and multi-agent swarms step on each other. powerplan is the
 | `get_current_iteration` | **Preferred for agents** — scoped JSON for current work |
 | `get_iteration` | JSON for one version (tasks, progress) |
 | `list_iterations` / `find_task` / `get_backlog` | Navigate without full-file reads |
-| `create_major` / `create_iteration` / `add_task` / … | Surgical mutations |
-| `complete_task` / `reopen_task` | Checkbox updates; optional `[agent: id]` |
+| `create_major` / `create_iteration` / `add_task` / `add_tasks` | Surgical mutations (batch add in one write) |
+| `complete_task` / `reopen_task` / `remove_task` / `defer_task` | One or many (`indexes` / `tasks`); optional `[agent: id]` |
 | `start_iteration` / `close_iteration` | ACTIVE/current vs COMPLETE lifecycle |
 | `check_plan` | Structure lint |
 | `show_plan` / `show_current_iteration` | Compact human skim (not a full dump) |

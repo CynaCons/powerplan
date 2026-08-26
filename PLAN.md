@@ -156,13 +156,39 @@ heavy deps.
 - [x] MCP snippets: Claude Code `.mcp.json`, Claude Desktop, Cursor, Grok (`uvx` / `uv run --with`) [agent: grok-4.6]
 - [x] Site hero + Integration: replace `pip install -e ".[dev]"` with the public `uvx` path [agent: grok-4.6]
 
-### v0.6.3 — Release, changelog, optional dogfood (current) (ACTIVE)
+### v0.6.3 — Release, changelog, optional dogfood
 **Goal:** Tagged public release with changelog and GitHub topics. Optional: install in two reference projects with the agent-docs rule that powerplan is the sanctioned PLAN.md writer.
 - [x] CHANGELOG.md covering shipped versions through this release [agent: grok-4.6]
 - [x] GitHub Release + topics (`mcp`, `agents`, `plan`) [agent: grok-4.6]
 - [x] Optional: tag → PyPI publish workflow [agent: grok-4.6]
 - [ ] Optional: install in two reference projects; agent-docs rule that powerplan is the sanctioned PLAN.md writer [agent: grok-4.6]
 - [x] Maintainer release guide (docs/RELEASING.md) + project skill for future MCP publishes [agent: grok-4.6]
+
+## v0.7 — Batch mutations
+> Agents can append several tasks in one locked write instead of N add_task round-trips.
+
+### v0.7.0 — add_tasks batch append (2026-08-26) (COMPLETE)
+**Goal:** One MCP call appends many checkbox tasks to an iteration in a single locked write. Prefer this over repeated add_task.
+- [x] add_tasks mutation: list of texts, one write, shared done/agent; refuse empty list or blank items (no partial write) [agent: grok-4.6]
+- [x] MCP tool add_tasks (tasks: string[], minItems 1) + richer JSON (added count, indexes) [agent: grok-4.6]
+- [x] Tests: order preserved, atomic refuse, agent/done, insert-before-trailing-blanks, list_tools exposes add_tasks [agent: grok-4.6]
+- [x] README / PRD / site tools table / CHANGELOG Unreleased [agent: grok-4.6]
+
+### v0.7.1 — Arity-independent batch mutations (2026-08-26) (COMPLETE)
+**Goal:** complete/reopen/remove/defer/update/add_to_backlog accept one or many items on the same tool, one locked write, atomic resolve-then-apply.
+- [x] Address kernel: _normalize_address + _resolve_many (cap 100, dups, resolve-then-apply) [agent: grok-4.6]
+- [x] complete/reopen/remove/defer accept indexes[] or tasks[] [agent: grok-4.6]
+- [x] update_task(changes[]) + add_to_backlog(texts[]) [agent: grok-4.6]
+- [x] MCP schemas + _mutate_result richer JSON (updated + original indexes) [agent: grok-4.6]
+- [x] Tests: resolve-then-apply, dups, mixed addressing, atomic expect, cap, MCP call_tool [agent: grok-4.6]
+- [x] README / PRD / site tools / CHANGELOG Unreleased [agent: grok-4.6]
+
+### v0.7.2 — Publish 0.7.0 to PyPI + MCP Registry (current) (ACTIVE)
+**Goal:** Tag v0.7.0 so publish.yml uploads powerplan-mcp 0.7.0 to PyPI and io.github.CynaCons/powerplan to the MCP Registry.
+- [x] Bump version files to 0.7.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README) [agent: grok-4.6]
+- [x] pytest -q green (packaging asserts 0.7.0) [agent: grok-4.6]
+- [ ] Commit feat(v0.7.0), push main, tag v0.7.0, gh release create [agent: grok-4.6]
+- [ ] Watch publish.yml; verify PyPI 0.7.0 and registry io.github.CynaCons/powerplan [agent: grok-4.6]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)

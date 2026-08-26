@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 — 2026-08-26
+
+Batch mutations.
+
+- `add_tasks(version, tasks)` — append several checkbox tasks in one locked
+  write. Prefer this over repeated `add_task`. Shared `done` / `agent` apply
+  to every item; empty list or blank items refuse the whole batch.
+- Arity-independent mutations: `complete_task`, `reopen_task`, `remove_task`,
+  and `defer_task` accept `indexes[]` or `tasks[]` for several items in one
+  write (resolve-all then apply; cap 100; duplicates refused). `update_task`
+  takes `changes[]` of `{text, index|task, expect?}`. `add_to_backlog` takes
+  `texts[]`. Singular `index`/`task`/`text` still work. No new `*_tasks` tools.
+
 ## 0.6.1 — 2026-08-22
 
 - MCP Registry namespace is `io.github.CynaCons/powerplan` (GitHub org casing;
