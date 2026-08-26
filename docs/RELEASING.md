@@ -188,6 +188,7 @@ OIDC as in the workflow.
 | Registry `403` “You have permission to publish: `io.github.CynaCons/*`” | `server.json` / README used `io.github.cynacons/powerplan` | Use `CynaCons` exactly; bump a **new** PyPI version so the README proof updates |
 | Registry “package validation failed” | PyPI README lacks `mcp-name: io.github.CynaCons/powerplan`, or sleep was too short | Keep both the HTML comment and the visible line in README; keep the 45s wait |
 | Wanted `pip install powerplan` | Name taken | Always `powerplan-mcp` on PyPI |
+| Tag `v*` push did not queue `publish.yml` | Observed on `v0.7.0` | `gh workflow run Publish --ref vX.Y.Z` (workflow_dispatch is already on the workflow) |
 
 ---
 
@@ -210,5 +211,8 @@ Changing those does not publish a new wheel.
   namespace casing.
 - **0.6.1** — README + `server.json` use `io.github.CynaCons/powerplan`. PyPI
   and registry both succeeded. Listing is **active**.
+- **0.7.0** — batch mutations (`add_tasks`, arity-independent `indexes`/`tasks` /
+  `changes` / `texts`). PyPI + registry both succeeded. Tag push did not start
+  `publish.yml`; dispatched with `gh workflow run Publish --ref v0.7.0`.
 
-GitHub Releases: `v0.6.0`, `v0.6.1`.
+GitHub Releases: `v0.6.0`, `v0.6.1`, `v0.7.0`.

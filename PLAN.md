@@ -183,12 +183,12 @@ heavy deps.
 - [x] Tests: resolve-then-apply, dups, mixed addressing, atomic expect, cap, MCP call_tool [agent: grok-4.6]
 - [x] README / PRD / site tools / CHANGELOG Unreleased [agent: grok-4.6]
 
-### v0.7.2 — Publish 0.7.0 to PyPI + MCP Registry (current) (ACTIVE)
+### v0.7.2 — Publish 0.7.0 to PyPI + MCP Registry (2026-08-26) (COMPLETE)
 **Goal:** Tag v0.7.0 so publish.yml uploads powerplan-mcp 0.7.0 to PyPI and io.github.CynaCons/powerplan to the MCP Registry.
 - [x] Bump version files to 0.7.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README) [agent: grok-4.6]
 - [x] pytest -q green (packaging asserts 0.7.0) [agent: grok-4.6]
-- [ ] Commit feat(v0.7.0), push main, tag v0.7.0, gh release create [agent: grok-4.6]
-- [ ] Watch publish.yml; verify PyPI 0.7.0 and registry io.github.CynaCons/powerplan [agent: grok-4.6]
+- [x] Commit feat(v0.7.0), push main, tag v0.7.0, gh release create [agent: grok-4.6]
+- [x] Watch publish.yml; verify PyPI 0.7.0 and registry io.github.CynaCons/powerplan [agent: grok-4.6]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
