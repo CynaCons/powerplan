@@ -130,13 +130,18 @@ Work on `main`, via powerplan tools for `PLAN.md`.
    git push origin vX.Y.Z
    gh release create vX.Y.Z --title "vX.Y.Z — <one line>" --notes-file CHANGELOG.md
    ```
-   Pushing the tag is what starts `.github/workflows/publish.yml`.
-6. **Watch**
+6. **Start Publish (required)** — do not wait for the tag `push` event.
+   Agent `git push` / `gh` calls often use a GitHub App token. GitHub does
+   **not** start `push`/`release` workflows from those credentials (same
+   recursion guard as `GITHUB_TOKEN`). `workflow_dispatch` is exempt, so:
    ```bash
-   gh run watch --repo CynaCons/powerplan --exit-status
+   gh workflow run Publish --ref vX.Y.Z
+   gh run list --workflow=Publish --limit 1
+   gh run watch <id> --repo CynaCons/powerplan --exit-status
    ```
-   The job: test → `python -m build` → PyPI (`skip-existing: true`) → sleep 45s
-   (PyPI must serve the new README) → `mcp-publisher` → registry.
+   A human `git push origin vX.Y.Z` from a personal account may still auto-start
+   the job; dispatching a second time is safe (`skip-existing: true` on PyPI).
+   The job: test → `python -m build` → PyPI → sleep 45s → `mcp-publisher`.
 7. **Verify**
    - https://pypi.org/project/powerplan-mcp/ — version is `X.Y.Z`
    - https://pypi.org/pypi/powerplan-mcp/json — `info.version`
@@ -144,8 +149,11 @@ Work on `main`, via powerplan tools for `PLAN.md`.
      `name` is `io.github.CynaCons/powerplan`, `version` is `X.Y.Z`,
      `_meta.….status` is `active`
 8. **Site copy** (only if install/docs snippets changed): `site/` hero and
-   Integration still say `uvx powerplan-mcp`. Pages deploys itself from `main`
-   when `site/**` changes.
+   Integration still say `uvx powerplan-mcp`. Same token rule as Publish —
+   after an agent push that touches `site/**`:
+   ```bash
+   gh workflow run "Deploy Landing Page" --ref main
+   ```
 
 Never move or reuse a tag that already published a wheel. If 0.6.1 is on PyPI,
 the next release is **0.6.2** (or 0.7.0), not a retag of 0.6.1.
@@ -154,7 +162,8 @@ the next release is **0.6.2** (or 0.7.0), not a retag of 0.6.1.
 
 ## What `publish.yml` does
 
-Trigger: push of tags `v*`, or `workflow_dispatch`.
+Trigger: push of tags `v*`, or `workflow_dispatch`. Agent releases **must**
+use `workflow_dispatch` (`gh workflow run Publish --ref vX.Y.Z`).
 
 | Step | Notes |
 |------|--------|
@@ -196,9 +205,9 @@ OIDC as in the workflow.
 
 | Workflow | When | What |
 |----------|------|------|
-| `.github/workflows/ci.yml` | push/PR `main` | pytest |
+| `.github/workflows/ci.yml` | push/PR `main`, or `workflow_dispatch` | pytest |
 | `.github/workflows/deploy-site.yml` | push `site/**` or `workflow_dispatch` | GitHub Pages |
-| `.github/workflows/publish.yml` | tag `v*` | PyPI + MCP Registry |
+| `.github/workflows/publish.yml` | tag `v*` or `workflow_dispatch` | PyPI + MCP Registry |
 
 Site install copy lives in `site/src/components/Hero.tsx` and `Integration.tsx`.
 Changing those does not publish a new wheel.

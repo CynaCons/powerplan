@@ -190,6 +190,11 @@ heavy deps.
 - [x] Commit feat(v0.7.0), push main, tag v0.7.0, gh release create [agent: grok-4.6]
 - [x] Watch publish.yml; verify PyPI 0.7.0 and registry io.github.CynaCons/powerplan [agent: grok-4.6]
 
+### v0.7.3 — Agent releases dispatch Publish (2026-08-26) (COMPLETE)
+**Goal:** Do not wait for a tag push event. After tagging, always gh workflow run Publish --ref vX.Y.Z. Document why agent git push does not start CI/Publish.
+- [x] RELEASING.md + skill: dispatch Publish is a required step, not a fallback [agent: grok-4.6]
+- [x] publish.yml comment + concurrency; ci.yml workflow_dispatch [agent: grok-4.6]
+
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
 - Backlog item CRUD: `update_backlog_item` / `remove_backlog_item` (iteration tasks got this in v0.5.1; backlog entries are still append-only)

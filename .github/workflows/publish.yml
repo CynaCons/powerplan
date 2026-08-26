@@ -1,10 +1,17 @@
 name: Publish
 
+# Tag push still works for a human `git push origin vX.Y.Z`.
+# Agent git pushes (Grok / GitHub App tokens) often do not create a `push`
+# event, so the release skill always `gh workflow run Publish --ref vX.Y.Z`.
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   publish:
