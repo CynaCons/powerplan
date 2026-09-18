@@ -30,6 +30,7 @@ from powerplan.views import (
     get_iteration_view,
     list_iterations_view,
     show_current_iteration,
+    show_miniplan,
     show_plan,
 )
 
@@ -208,6 +209,37 @@ async def list_tools() -> list:
             name="get_backlog",
             description="Backlog section items (JSON).",
             inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
+        ),
+        Tool(
+            name="show_miniplan",
+            description=(
+                "Raw PLAN.md snippet: the current (or named) iteration byte-for-byte "
+                "under its major header, with the neighbouring iterations collapsed "
+                "to their header lines. The plan's own format is the view — start "
+                "every session here instead of reading the whole file."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "version": {
+                        "type": "string",
+                        "description": "Iteration to show; default = the current iteration.",
+                    },
+                    "before": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 1,
+                        "description": "Preceding iterations shown as header lines only.",
+                    },
+                    "after": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 1,
+                        "description": "Following iterations shown as header lines only.",
+                    },
+                    **_PLAN_PATH_PROP,
+                },
+            },
         ),
         Tool(
             name="show_current_iteration",
@@ -557,6 +589,17 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list:
             return _text(find_task_view(_load(args), str(text)))
         if name == "get_backlog":
             return _text(get_backlog_view(_load(args)))
+        if name == "show_miniplan":
+            try:
+                snippet = show_miniplan(
+                    _load(args),
+                    version=args.get("version"),
+                    before=args.get("before", 1),
+                    after=args.get("after", 1),
+                )
+            except ValueError as exc:
+                return _err(str(exc))
+            return _text(snippet if snippet else "No iterations found in plan.\n")
         if name == "show_current_iteration":
             return _text(show_current_iteration(_load(args)))
         if name == "show_plan":

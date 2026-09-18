@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+Miniplan.
+
+- `show_miniplan(version?, before?, after?)` — the plan's own format as the
+  agent view: the current (or named) iteration as raw PLAN.md text under its
+  major header, with the neighbouring iterations collapsed to their header
+  lines. Session opener for PowerFlow (D11: PLAN.md first and last).
+
 ## 0.7.0 — 2026-08-26
 
 Batch mutations.

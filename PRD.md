@@ -78,6 +78,7 @@ Iterations (and majors, when present) are the structural units tools operate on.
 | `list_iterations(filter)` | open / complete / all |
 | `get_backlog` | Backlog items |
 | `find_task(text)` | Locate tasks by fuzzy text match |
+| `show_miniplan(version?, before?, after?)` | **Raw PLAN.md snippet** — the current (or named) iteration byte-for-byte under its major header, with the neighbouring iterations collapsed to their header lines (`before` / `after`, default 1). The plan's own format is the view: paste-able, no JSON, no ASCII rendering. The session-opening call (PowerFlow D11). |
 
 ### Mutate
 | Tool | Behavior |

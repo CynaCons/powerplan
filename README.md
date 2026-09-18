@@ -91,10 +91,12 @@ pip install powerplan-mcp
 Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 
 1. If tools fail with “no PLAN.md” → `create_plan` first.
-2. `get_current_iteration` — what to work on now (JSON).
-3. `get_iteration(version)` — one iteration’s tasks and progress.
-4. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
-5. `show_plan` is a human skim, not a dump.
+2. `show_miniplan` — what to work on now, in the plan's own format: the current
+   iteration verbatim with the neighbouring headers. Start every session here.
+3. `get_current_iteration` — the same, as JSON.
+4. `get_iteration(version)` — one iteration’s tasks and progress.
+5. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
+6. `show_plan` is a human skim, not a dump.
 
 Every tool accepts optional `plan_path` (relative or absolute). Default: walk up
 from cwd to the nearest `PLAN.md`.
@@ -116,6 +118,7 @@ without proof, and multi-agent swarms step on each other. powerplan is the
 | Tool | Behavior |
 |------|----------|
 | `create_plan` | Bootstrap `./PLAN.md` (or `plan_path`) when missing; `force` to overwrite |
+| `show_miniplan` | **Session opener** — raw PLAN.md snippet: the current (or named) iteration byte-for-byte, neighbours collapsed to header lines (`before`/`after`) |
 | `get_current_iteration` | **Preferred for agents** — scoped JSON for current work |
 | `get_iteration` | JSON for one version (tasks, progress) |
 | `list_iterations` / `find_task` / `get_backlog` | Navigate without full-file reads |

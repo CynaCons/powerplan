@@ -8,9 +8,11 @@ from typing import Any, List, Optional
 from .plan_model import (
     BacklogSection,
     Iteration,
+    MajorSection,
     Plan,
     ProseBlock,
 )
+from .plan_writer import write_node
 
 
 def _progress(it: Iteration) -> str:
@@ -188,3 +190,93 @@ def find_task_view(plan: Plan, text: str) -> str:
         indent=2,
         ensure_ascii=False,
     )
+
+
+# --- miniplan: the plan's own format as the agent view -----------------------
+
+
+def _major_of(plan: Plan, it: Iteration) -> Optional[MajorSection]:
+    for block in plan.blocks:
+        if isinstance(block, MajorSection) and any(c is it for c in block.children):
+            return block
+    return None
+
+
+def _major_header(major: MajorSection) -> str:
+    raw = major.header_raw or f"## {major.version} — {major.title}\n"
+    # Appended headers carry their blank-line padding as a leading break;
+    # a collapsed line does not need it.
+    return raw.lstrip("\r\n")
+
+
+def _iteration_header(it: Iteration) -> str:
+    if it.header_raw:
+        return it.header_raw.lstrip("\r\n")
+    title = f"{it.title} ({it.status})" if it.status else it.title
+    return f"### {it.version} — {title}\n"
+
+
+def show_miniplan(
+    plan: Plan,
+    version: Optional[str] = None,
+    before: int = 1,
+    after: int = 1,
+) -> str:
+    """
+    Raw PLAN.md snippet for one iteration (default: the current one).
+
+    Output, in plan order, byte-for-byte from the source nodes:
+      * the major header the target sits under (when it has one),
+      * up to ``before`` preceding iterations collapsed to their header line
+        (each preceded by its own major header when that differs from the
+        target's),
+      * the target iteration in full (goal, tasks, interleaved prose),
+      * up to ``after`` following iterations collapsed the same way.
+
+    Neighbours are taken from the plan's flat iteration order, so context
+    crosses major boundaries. Raises ``ValueError`` when ``version`` names an
+    iteration that does not exist. Returns "" for a plan with no iterations.
+    """
+    if version:
+        target = plan.find_iteration(version)
+        if target is None:
+            raise ValueError(f"Iteration not found: {version}")
+    else:
+        target = plan.current_iteration()
+        if target is None:
+            return ""
+
+    iterations = plan.all_iterations()
+    idx = next(i for i, it in enumerate(iterations) if it is target)
+    before = max(0, int(before or 0))
+    after = max(0, int(after or 0))
+    prev_its = iterations[max(0, idx - before) : idx]
+    next_its = iterations[idx + 1 : idx + 1 + after]
+
+    target_major = _major_of(plan, target)
+    parts: List[str] = []
+    shown_major: Optional[MajorSection] = None
+
+    def _collapsed(it: Iteration) -> None:
+        nonlocal shown_major
+        major = _major_of(plan, it)
+        if major is not None and major is not shown_major and major is not target_major:
+            parts.append(_major_header(major))
+            shown_major = major
+        elif major is target_major and major is not None and shown_major is not major:
+            parts.append(_major_header(major))
+            shown_major = major
+        parts.append(_iteration_header(it))
+
+    for it in prev_its:
+        _collapsed(it)
+    if target_major is not None and shown_major is not target_major:
+        parts.append(_major_header(target_major))
+        shown_major = target_major
+    parts.append(write_node(target))
+    for it in next_its:
+        _collapsed(it)
+    # The target keeps its raw bytes (its own leading pad included when it is
+    # the first part); only the snippet's very first line is unpadded.
+    return "".join(parts).lstrip("\r\n")
+

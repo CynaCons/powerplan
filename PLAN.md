@@ -195,6 +195,24 @@ heavy deps.
 - [x] RELEASING.md + skill: dispatch Publish is a required step, not a fallback [agent: grok-4.6]
 - [x] publish.yml comment + concurrency; ci.yml workflow_dispatch [agent: grok-4.6]
 
+## v0.8 — Miniplan
+> The plan's own format as the agent view: a raw snippet of the ongoing iteration with a little context, instead of JSON or ASCII.
+
+### v0.8.0 — show_miniplan tool (2026-09-18) (COMPLETE)
+**Goal:** One MCP call returns the current (or named) iteration as raw PLAN.md text - its major header, the previous and next iteration header lines collapsed, the iteration itself byte-for-byte - so a coordinator starts and ends every session on the plan without reading the whole file. Requested 2026-09-18 for PowerFlow (D11: PLAN.md first and last).
+- [x] views.show_miniplan(plan, version=None, before=1, after=1): raw text via write_node; neighbours collapsed to header_raw (with their major header when it differs); major header of the target included; CRLF preserved; missing version raises [agent: claude-opus-5]
+- [x] MCP tool show_miniplan (version?, before?, after?, plan_path?) in server.py, listed in list_tools with an agent-first description [agent: claude-opus-5]
+- [x] Tests: current-iteration default, explicit version, before/after 0 and 2, top-level iterations without a major, cross-major neighbour, missing iteration error, snippet is a byte-identical slice of the source file [agent: claude-opus-5]
+- [x] README agent guide step + tools table row, PRD section 5 row, CHANGELOG Unreleased [agent: claude-opus-5]
+- [x] Smoke: list_tools exposes show_miniplan; show_miniplan on this PLAN.md returns this iteration verbatim [agent: claude-opus-5]
+
+### v0.8.1 — Publish 0.8.0 to PyPI + MCP Registry
+**Goal:** Tag v0.8.0 so publish.yml uploads powerplan-mcp 0.8.0 to PyPI and io.github.CynaCons/powerplan to the MCP Registry; PowerFlow templates then register uvx powerplan-mcp with show_miniplan available.
+- [ ] Bump version files to 0.8.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README)
+- [ ] pytest -q green (packaging asserts 0.8.0)
+- [ ] Commit feat(v0.8.0), push main, tag v0.8.0, gh release create, gh workflow run Publish --ref v0.8.0
+- [ ] Watch publish.yml; verify PyPI 0.8.0 and the registry listing
+
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
 - Backlog item CRUD: `update_backlog_item` / `remove_backlog_item` (iteration tasks got this in v0.5.1; backlog entries are still append-only)
