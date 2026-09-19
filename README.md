@@ -16,7 +16,7 @@ mcp-name: io.github.CynaCons/powerplan
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
 | **Registry** | `io.github.CynaCons/powerplan` |
-| **Status** | v0.7.0 — batch mutations ([PLAN.md](PLAN.md)) |
+| **Status** | v0.8.0 — miniplan ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 

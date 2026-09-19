@@ -208,8 +208,8 @@ heavy deps.
 
 ### v0.8.1 — Publish 0.8.0 to PyPI + MCP Registry
 **Goal:** Tag v0.8.0 so publish.yml uploads powerplan-mcp 0.8.0 to PyPI and io.github.CynaCons/powerplan to the MCP Registry; PowerFlow templates then register uvx powerplan-mcp with show_miniplan available.
-- [ ] Bump version files to 0.8.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README)
-- [ ] pytest -q green (packaging asserts 0.8.0)
+- [x] Bump version files to 0.8.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README) [agent: claude-opus-5]
+- [x] pytest -q green (packaging asserts 0.8.0) [agent: claude-opus-5]
 - [ ] Commit feat(v0.8.0), push main, tag v0.8.0, gh release create, gh workflow run Publish --ref v0.8.0
 - [ ] Watch publish.yml; verify PyPI 0.8.0 and the registry listing
 
