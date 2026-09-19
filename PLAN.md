@@ -206,12 +206,12 @@ heavy deps.
 - [x] README agent guide step + tools table row, PRD section 5 row, CHANGELOG Unreleased [agent: claude-opus-5]
 - [x] Smoke: list_tools exposes show_miniplan; show_miniplan on this PLAN.md returns this iteration verbatim [agent: claude-opus-5]
 
-### v0.8.1 — Publish 0.8.0 to PyPI + MCP Registry
+### v0.8.1 — Publish 0.8.0 to PyPI + MCP Registry (2026-09-19) (COMPLETE)
 **Goal:** Tag v0.8.0 so publish.yml uploads powerplan-mcp 0.8.0 to PyPI and io.github.CynaCons/powerplan to the MCP Registry; PowerFlow templates then register uvx powerplan-mcp with show_miniplan available.
 - [x] Bump version files to 0.8.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README) [agent: claude-opus-5]
 - [x] pytest -q green (packaging asserts 0.8.0) [agent: claude-opus-5]
-- [ ] Commit feat(v0.8.0), push main, tag v0.8.0, gh release create, gh workflow run Publish --ref v0.8.0
-- [ ] Watch publish.yml; verify PyPI 0.8.0 and the registry listing
+- [x] Commit feat(v0.8.0), push main, tag v0.8.0, gh release create, gh workflow run Publish --ref v0.8.0 [agent: claude-opus-5]
+- [x] Watch publish.yml; verify PyPI 0.8.0 and the registry listing [agent: claude-opus-5]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)

@@ -119,8 +119,8 @@ Work on `main`, via powerplan tools for `PLAN.md`.
    ```bash
    python -m pytest -q
    ```
-   Optional: JSON-RPC `tools/list` against `python -m powerplan` (22 tools as of
-   0.6.x).
+   Optional: JSON-RPC `tools/list` against `python -m powerplan` (24 tools as of
+   0.8.0).
 4. **Commit** the version bump (conventional: `chore: release X.Y.Z` or
    `feat(vX.Y.Z): …`).
 5. **Tag and push**
@@ -130,17 +130,23 @@ Work on `main`, via powerplan tools for `PLAN.md`.
    git push origin vX.Y.Z
    gh release create vX.Y.Z --title "vX.Y.Z — <one line>" --notes-file CHANGELOG.md
    ```
-6. **Start Publish (required)** — do not wait for the tag `push` event.
-   Agent `git push` / `gh` calls often use a GitHub App token. GitHub does
-   **not** start `push`/`release` workflows from those credentials (same
-   recursion guard as `GITHUB_TOKEN`). `workflow_dispatch` is exempt, so:
+6. **Make sure Publish is running** — check before dispatching.
+   ```bash
+   gh run list --workflow=Publish --limit 2
+   ```
+   If the tag push already queued a run (event `push`, ref `vX.Y.Z`), watch
+   that one and **do not dispatch** — a second run reaches the registry after
+   the first and fails with `cannot publish duplicate version` (PyPI itself is
+   safe: `skip-existing: true`). If nothing queued — agent `git push` / `gh`
+   calls that use a GitHub App token do not start `push`/`release` workflows
+   (same recursion guard as `GITHUB_TOKEN`) — dispatch, which is exempt:
    ```bash
    gh workflow run Publish --ref vX.Y.Z
-   gh run list --workflow=Publish --limit 1
    gh run watch <id> --repo CynaCons/powerplan --exit-status
    ```
-   A human `git push origin vX.Y.Z` from a personal account may still auto-start
-   the job; dispatching a second time is safe (`skip-existing: true` on PyPI).
+   Observed: `v0.7.0` (push did not queue → dispatch needed);
+   `v0.8.0` (push from the owner's keyring credentials queued it → the extra
+   dispatch was the red run).
    The job: test → `python -m build` → PyPI → sleep 45s → `mcp-publisher`.
 7. **Verify**
    - https://pypi.org/project/powerplan-mcp/ — version is `X.Y.Z`
@@ -198,6 +204,7 @@ OIDC as in the workflow.
 | Registry “package validation failed” | PyPI README lacks `mcp-name: io.github.CynaCons/powerplan`, or sleep was too short | Keep both the HTML comment and the visible line in README; keep the 45s wait |
 | Wanted `pip install powerplan` | Name taken | Always `powerplan-mcp` on PyPI |
 | Tag `v*` push did not queue `publish.yml` | Observed on `v0.7.0` | `gh workflow run Publish --ref vX.Y.Z` (workflow_dispatch is already on the workflow) |
+| Registry `400` `cannot publish duplicate version` on a second Publish run | Tag push **did** queue the job (personal credentials) and the agent dispatched anyway (`v0.8.0`) | Check `gh run list --workflow=Publish` before dispatching; the first run already published, the red duplicate is harmless |
 
 ---
 
@@ -224,4 +231,8 @@ Changing those does not publish a new wheel.
   `changes` / `texts`). PyPI + registry both succeeded. Tag push did not start
   `publish.yml`; dispatched with `gh workflow run Publish --ref v0.7.0`.
 
-GitHub Releases: `v0.6.0`, `v0.6.1`, `v0.7.0`.
+- **0.8.0** — `show_miniplan`. Tag push queued `publish.yml` this time; a
+  redundant dispatch failed at the registry with `duplicate version`.
+  PyPI + registry both succeeded from the push run (2026-09-19).
+
+GitHub Releases: `v0.6.0`, `v0.6.1`, `v0.7.0`, `v0.8.0`.

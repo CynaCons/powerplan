@@ -19,9 +19,11 @@ copy those tables into this skill.
 1. Confirm the product change is on `main` and `python -m pytest -q` is green.
 2. Bump the version in every file listed under **Version files** in `docs/RELEASING.md`.
 3. Commit, `git push origin main`, tag `vX.Y.Z`, push the tag, `gh release create`.
-4. **Always** start publish yourself — do not wait for the tag `push` event
-   (agent pushes often do not trigger workflows):
-   `gh workflow run Publish --ref vX.Y.Z`
+4. **Make sure Publish is running** — `gh run list --workflow=Publish --limit 2`
+   first. If the tag push already queued a run for `vX.Y.Z`, watch it and do
+   **not** dispatch (a second run fails at the registry with `duplicate
+   version`). If nothing queued (agent pushes with an App token do not trigger
+   workflows): `gh workflow run Publish --ref vX.Y.Z`,
    then `gh run watch <id> --exit-status`.
    If `site/**` changed, also `gh workflow run "Deploy Landing Page"`.
 5. Verify PyPI and the MCP Registry URLs in `docs/RELEASING.md`.
