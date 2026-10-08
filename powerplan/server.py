@@ -48,7 +48,18 @@ except ImportError:
     print("ERROR: MCP SDK not installed. Run: pip install mcp", file=sys.stderr)
     sys.exit(1)
 
-server = Server("powerplan")
+# Sent to every MCP client at initialize, so Claude, Codex, Cursor, ... all get
+# the same operating rules without a project-specific prompt.
+INSTRUCTIONS = """powerplan keeps this project's PLAN.md: majors, iterations and checkbox tasks.
+- Start of a session: call show_miniplan (or get_current_iteration) to see what is in progress.
+- Register work as tasks before doing it; tick each one with complete_task when it is done and
+  verified. Change PLAN.md only through these tools, never by editing the file.
+- At the end of every major turn (files changed, tasks ticked or added, a check run, an
+  iteration closed), call show_current_iteration and paste its output verbatim inside a
+  ``` code block at the end of your reply, so the user sees the plan's state at a glance.
+"""
+
+server = Server("powerplan", instructions=INSTRUCTIONS)
 
 _PLAN_PATH_PROP = {
     "plan_path": {
@@ -243,7 +254,11 @@ async def list_tools() -> list:
         ),
         Tool(
             name="show_current_iteration",
-            description="ASCII view of the resolved current iteration (humans/logs).",
+            description=(
+                "Status view of the current iteration: status, progress count, goal and "
+                "tasks. Paste it verbatim in a ``` code block at the end of every major "
+                "turn so the user sees the plan's state at a glance."
+            ),
             inputSchema={"type": "object", "properties": {**_PLAN_PATH_PROP}},
         ),
         Tool(
@@ -808,6 +823,7 @@ async def main() -> None:
         init_options = InitializationOptions(
             server_name="powerplan",
             server_version=SERVER_VERSION,
+            instructions=INSTRUCTIONS,
             capabilities=server.get_capabilities(
                 notification_options=NotificationOptions(),
                 experimental_capabilities={},

@@ -12,7 +12,7 @@ from powerplan.server import SERVER_VERSION, list_tools, run_sync
 
 
 def test_package_version_aligned():
-    assert __version__ == "0.8.0"
+    assert __version__ == "0.9.0"
     assert SERVER_VERSION == __version__
 
 

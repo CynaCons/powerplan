@@ -16,7 +16,7 @@ mcp-name: io.github.CynaCons/powerplan
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
 | **Registry** | `io.github.CynaCons/powerplan` |
-| **Status** | v0.8.0 — miniplan ([PLAN.md](PLAN.md)) |
+| **Status** | v0.9.0 — turn-end status view ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
@@ -97,6 +97,10 @@ Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 4. `get_iteration(version)` — one iteration’s tasks and progress.
 5. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
 6. `show_plan` is a human skim, not a dump.
+7. **End every major turn** (files changed, tasks ticked or added, a check run, an
+   iteration closed) with `show_current_iteration` pasted verbatim in a code block,
+   so the user sees status and progress at a glance. The server sends this rule to
+   every client in its MCP instructions.
 
 Every tool accepts optional `plan_path` (relative or absolute). Default: walk up
 from cwd to the nearest `PLAN.md`.
@@ -126,7 +130,8 @@ without proof, and multi-agent swarms step on each other. powerplan is the
 | `complete_task` / `reopen_task` / `remove_task` / `defer_task` | One or many (`indexes` / `tasks`); optional `[agent: id]` |
 | `start_iteration` / `close_iteration` | ACTIVE/current vs COMPLETE lifecycle |
 | `check_plan` | Structure lint |
-| `show_plan` / `show_current_iteration` | Compact human skim (not a full dump) |
+| `show_current_iteration` | **Turn closer** — status view (status, progress count, goal, tasks) to paste at the end of every major turn |
+| `show_plan` | Compact human skim (not a full dump) |
 
 ---
 

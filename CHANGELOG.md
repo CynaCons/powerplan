@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 — 2026-10-08
+
+Turn-end status view for every agent.
+
+- The server now sends MCP `instructions` at initialize, so every client (Claude Code,
+  Codex, Cursor, ...) gets the same rules: open a session with `show_miniplan`, register
+  and tick work through powerplan, and end each major turn by pasting
+  `show_current_iteration` verbatim in a code block.
+- `show_current_iteration` description says the same.
+
 ## 0.8.0 — 2026-09-19
 
 Miniplan.
