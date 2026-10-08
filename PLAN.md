@@ -216,12 +216,12 @@ heavy deps.
 ## v0.9 — Turn-end status view for every agent
 > Owner 2026-10-08: every agent ends each major turn with the show_current_iteration status block (status + progress count). The rule ships in the server's MCP instructions so Claude, Codex and Cursor all receive it.
 
-### v0.9.0 — Server instructions: status view at the end of each major turn (2026-10-08) (current) (ACTIVE)
+### v0.9.0 — Server instructions: status view at the end of each major turn (2026-10-08) (COMPLETE)
 **Goal:** Every MCP client connected to powerplan is told, at initialize, to end each major turn with show_current_iteration pasted verbatim in a code block; release 0.9.0 to PyPI + MCP Registry.
 - [x] server.py: INSTRUCTIONS sent at initialize (session start, register/tick work, end each major turn with show_current_iteration verbatim in a code block, PLAN.md only through powerplan); show_current_iteration description says the same
 - [x] Test: initialize over stdio returns the instructions; tool description mentions the turn-end rule
 - [x] Bump version files to 0.9.0 (pyproject, __init__, server.json, test_packaging, CHANGELOG, README)
-- [ ] Release per docs/RELEASING.md: push, tag v0.9.0, GitHub release, Publish run; verify PyPI + registry
+- [x] Release per docs/RELEASING.md: push, tag v0.9.0, GitHub release, Publish run; verify PyPI + registry
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
