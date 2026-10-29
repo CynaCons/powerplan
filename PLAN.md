@@ -226,14 +226,14 @@ heavy deps.
 ## v0.10 — Miniplan turn report
 > Owner 2026-10-29: agents end a turn with a miniplan — a snapshot in the plan's own format, printed in the chat, never a file. It also carries quick off-plan items the turn is tracking that are not in PLAN.md yet.
 
-### v0.10.0 — Miniplan skill for every agent
+### v0.10.0 — Miniplan skill for every agent (2026-10-29) (COMPLETE)
 **Goal:** A miniplan is the show_miniplan block pasted verbatim with its checkboxes flipped, plus an Off-plan section for temporary items marked -> plan / -> backlog / -> drop. Chat output only. Shipped as a skill for Claude, Cursor, Codex and Grok and as MCP instructions so every client receives it; released as 0.10.0.
 - [x] docs/MINIPLAN.md: miniplan format spec — chat only, seeded verbatim from show_miniplan, Off-plan section with -> plan / -> backlog / -> drop dispositions [agent: claude-opus-5]
 - [x] Skill `miniplan` for four agents: .claude/ .cursor/ .codex/ .grok/ skills (thin, pointing at docs/MINIPLAN.md) + .cursor/rules/miniplan.mdc + repo-root AGENTS.md [agent: claude-opus-5]
 - [x] server.py INSTRUCTIONS: miniplan defined at initialize so every MCP client gets it; show_miniplan description says it seeds the turn-end report [agent: claude-opus-5]
 - [x] Tests: INSTRUCTIONS carry the miniplan rule and the three dispositions; show_miniplan description mentions the report (pytest -q, 123 passed) [agent: claude-opus-5]
 - [x] README agent guide + tools row, CHANGELOG 0.10.0, version files bumped to 0.10.0 [agent: claude-opus-5]
-- [ ] Release per docs/RELEASING.md: Publish workflow run for 0.10.0; verify PyPI + MCP Registry [agent: claude-opus-5]
+- [x] Release per docs/RELEASING.md: Publish workflow run for 0.10.0; verify PyPI + MCP Registry [agent: claude-opus-5]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
@@ -243,3 +243,4 @@ heavy deps.
 - Plan → GitHub issues export (one-way)
 - Optional: structured tool output for Current Status section
 - `recreate_plan.py` byte-identity now requires a backlog-last source; PowerNote's plan was normalized (backlog moved below v0.27, redundant `---` dropped) to restore it
+- Git tag + GitHub Release for 0.10.0: cloud sessions get HTTP 403 on tag pushes, so the tag must be pushed from a human checkout
