@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.10.0 — 2026-10-29
+
+Miniplan turn report.
+
+- The server's MCP `instructions` now define the **miniplan**: a turn-end task
+  report in PLAN.md's own format, printed in the chat and never written to a
+  file. It is the `show_miniplan` block pasted verbatim with its checkboxes
+  flipped, followed by an `## Off-plan` section for quick items the turn is
+  tracking that are not in `PLAN.md`, each marked `-> plan`, `-> backlog` or
+  `-> drop`. Every client (Claude Code, Codex, Cursor, Grok, ...) receives it at
+  initialize.
+- `show_miniplan` description says it seeds the turn-end report.
+- `docs/MINIPLAN.md` owns the format, template and example.
+- Project skill `miniplan` shipped for four agents — `.claude/skills/`,
+  `.cursor/skills/`, `.codex/skills/`, `.grok/skills/` — plus
+  `.cursor/rules/miniplan.mdc` and a repo-root `AGENTS.md`.
+
 ## 0.9.0 — 2026-10-08
 
 Turn-end status view for every agent.

@@ -55,8 +55,15 @@ INSTRUCTIONS = """powerplan keeps this project's PLAN.md: majors, iterations and
 - Register work as tasks before doing it; tick each one with complete_task when it is done and
   verified. Change PLAN.md only through these tools, never by editing the file.
 - At the end of every major turn (files changed, tasks ticked or added, a check run, an
-  iteration closed), call show_current_iteration and paste its output verbatim inside a
-  ``` code block at the end of your reply, so the user sees the plan's state at a glance.
+  iteration closed), report a miniplan in the chat, then call show_current_iteration and
+  paste its output verbatim inside a ``` code block, so the user sees the plan's state at
+  a glance.
+- A miniplan is a turn-end task report written in PLAN.md's own format, printed in the
+  reply and never written to a file: the show_miniplan block pasted verbatim with its
+  checkboxes flipped to this turn's real state, followed by an "## Off-plan" section for
+  quick items this turn tracks that are not in PLAN.md, each marked -> plan, -> backlog
+  or -> drop. Mirror -> plan with add_tasks and -> backlog with add_to_backlog before the
+  turn ends; drop the rest.
 """
 
 server = Server("powerplan", instructions=INSTRUCTIONS)
@@ -227,7 +234,9 @@ async def list_tools() -> list:
                 "Raw PLAN.md snippet: the current (or named) iteration byte-for-byte "
                 "under its major header, with the neighbouring iterations collapsed "
                 "to their header lines. The plan's own format is the view — start "
-                "every session here instead of reading the whole file."
+                "every session here instead of reading the whole file, and seed the "
+                "turn-end miniplan report from this block (verbatim, checkboxes "
+                "flipped, plus an \"## Off-plan\" section for items not in PLAN.md)."
             ),
             inputSchema={
                 "type": "object",

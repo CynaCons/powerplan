@@ -17,6 +17,21 @@ def test_instructions_carry_the_turn_end_rule():
     assert "show_miniplan" in INSTRUCTIONS  # session start
 
 
+def test_instructions_carry_the_miniplan_rule():
+    """v0.10.0: every client is told how to report a miniplan at turn end."""
+    assert "miniplan" in INSTRUCTIONS
+    assert "## Off-plan" in INSTRUCTIONS
+    assert "never written to a file" in INSTRUCTIONS
+    for disposition in ("-> plan", "-> backlog", "-> drop"):
+        assert disposition in INSTRUCTIONS
+
+
+def test_show_miniplan_description_mentions_the_turn_end_report():
+    tools = {t.name: t for t in asyncio.run(list_tools())}
+    desc = tools["show_miniplan"].description
+    assert "miniplan" in desc and "Off-plan" in desc
+
+
 def test_show_current_iteration_description_repeats_the_rule():
     tools = {t.name: t for t in asyncio.run(list_tools())}
     desc = tools["show_current_iteration"].description

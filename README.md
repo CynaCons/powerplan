@@ -16,7 +16,7 @@ mcp-name: io.github.CynaCons/powerplan
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
 | **Registry** | `io.github.CynaCons/powerplan` |
-| **Status** | v0.9.0 — turn-end status view ([PLAN.md](PLAN.md)) |
+| **Status** | v0.10.0 — miniplan turn report ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
@@ -98,9 +98,17 @@ Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 5. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
 6. `show_plan` is a human skim, not a dump.
 7. **End every major turn** (files changed, tasks ticked or added, a check run, an
-   iteration closed) with `show_current_iteration` pasted verbatim in a code block,
-   so the user sees status and progress at a glance. The server sends this rule to
-   every client in its MCP instructions.
+   iteration closed) with a **miniplan** in the chat, then `show_current_iteration`
+   pasted verbatim in a code block, so the user sees status and progress at a glance.
+   The server sends this rule to every client in its MCP instructions.
+
+A **miniplan** is a turn-end task report in the plan's own format, printed in the
+reply and never written to a file: the `show_miniplan` block verbatim with its
+checkboxes flipped, plus an `## Off-plan` section for quick items the turn is
+tracking that are not in `PLAN.md` yet, each marked `→ plan`, `→ backlog` or
+`→ drop`. Format and example: [docs/MINIPLAN.md](docs/MINIPLAN.md). Ships as the
+`miniplan` skill for Claude Code, Cursor, Codex and Grok (`.claude/skills/`,
+`.cursor/skills/`, `.codex/skills/`, `.grok/skills/`).
 
 Every tool accepts optional `plan_path` (relative or absolute). Default: walk up
 from cwd to the nearest `PLAN.md`.
@@ -122,7 +130,7 @@ without proof, and multi-agent swarms step on each other. powerplan is the
 | Tool | Behavior |
 |------|----------|
 | `create_plan` | Bootstrap `./PLAN.md` (or `plan_path`) when missing; `force` to overwrite |
-| `show_miniplan` | **Session opener** — raw PLAN.md snippet: the current (or named) iteration byte-for-byte, neighbours collapsed to header lines (`before`/`after`) |
+| `show_miniplan` | **Session opener** — raw PLAN.md snippet: the current (or named) iteration byte-for-byte, neighbours collapsed to header lines (`before`/`after`). Also seeds the turn-end [miniplan](docs/MINIPLAN.md) report |
 | `get_current_iteration` | **Preferred for agents** — scoped JSON for current work |
 | `get_iteration` | JSON for one version (tasks, progress) |
 | `list_iterations` / `find_task` / `get_backlog` | Navigate without full-file reads |
