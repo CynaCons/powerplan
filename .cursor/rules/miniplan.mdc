@@ -1,0 +1,11 @@
+---
+description: Miniplan — turn-end task report in PLAN.md format, printed in chat
+alwaysApply: false
+---
+
+End a multi-step turn with a **miniplan**: the current iteration seeded verbatim
+from the powerplan MCP tool `show_miniplan` with checkboxes flipped, plus an
+`## Off-plan` section for quick items this turn is tracking that are not in
+`PLAN.md` (each marked `→ plan`, `→ backlog` or `→ drop`). Print it in the chat;
+never write it to a file. Then paste `show_current_iteration` verbatim in a code
+block. Format: `docs/MINIPLAN.md`. `PLAN.md` changes only through powerplan tools.
