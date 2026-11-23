@@ -238,7 +238,7 @@ heavy deps.
 ## v0.11 — Bulk operations
 > Heterogeneous atomic batches: one call applies a whole turn-end's bookkeeping, so PLAN.md is never half-written.
 
-### v0.11.0 — apply_ops — atomic heterogeneous batches
+### v0.11.0 — apply_ops — atomic heterogeneous batches (2026-11-23) (COMPLETE)
 **Goal:** One apply_ops tool that runs a list of mutating ops in order inside a single load/normalize/write, all-or-nothing, with dry_run and per-op error locating.
 - [x] Design apply_ops (atomicity, ordering, inheritance, dry_run, caps) + agent review [agent: claude-opus-5]
 - [x] mutations.apply_ops: op table reusing existing mutation fns, no duplicated logic [agent: claude-opus-5]
@@ -247,7 +247,7 @@ heavy deps.
 - [x] tests/test_apply_ops.py: atomicity, ordering, dry_run, bad ops, caps, MCP round trip [agent: claude-opus-5]
 - [x] docs: docs/BULK.md + README tool table + CHANGELOG 0.11.0 [agent: claude-opus-5]
 - [x] Version bump 0.11.0 across the six release files; full pytest green [agent: claude-opus-5]
-- [ ] Push to main, dispatch Publish (PyPI + MCP Registry), verify both live [agent: claude-opus-5]
+- [x] Push to main, dispatch Publish (PyPI + MCP Registry), verify both live [agent: claude-opus-5]
 
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
