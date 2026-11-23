@@ -16,7 +16,7 @@ mcp-name: io.github.CynaCons/powerplan
 | **MCP server name** | `powerplan` |
 | **PyPI** | [`powerplan-mcp`](https://pypi.org/project/powerplan-mcp/) (`powerplan` is a different, unrelated package) |
 | **Registry** | `io.github.CynaCons/powerplan` |
-| **Status** | v0.10.0 — miniplan turn report ([PLAN.md](PLAN.md)) |
+| **Status** | v0.11.0 — bulk operations ([PLAN.md](PLAN.md)) |
 | **Site** | [GitHub Pages](https://cynacons.github.io/powerplan/) |
 | **Pairs with** | [PowerSpawn](https://github.com/CynaCons/PowerSpawn) (optional) |
 
@@ -96,6 +96,8 @@ Prefer scoped tools. Do **not** read all of `PLAN.md` to figure out what to do.
 3. `get_current_iteration` — the same, as JSON.
 4. `get_iteration(version)` — one iteration’s tasks and progress.
 5. Mutate with `add_task` / `add_tasks` / `complete_task` (`indexes` for several) / `start_iteration` / `close_iteration`.
+   Several *different* changes in one turn → one `apply_ops` call instead, which
+   applies them atomically ([docs/BULK.md](docs/BULK.md)).
 6. `show_plan` is a human skim, not a dump.
 7. **End every major turn** (files changed, tasks ticked or added, a check run, an
    iteration closed) with a **miniplan** in the chat, then `show_current_iteration`
@@ -137,6 +139,7 @@ without proof, and multi-agent swarms step on each other. powerplan is the
 | `create_major` / `create_iteration` / `add_task` / `add_tasks` | Surgical mutations (batch add in one write) |
 | `complete_task` / `reopen_task` / `remove_task` / `defer_task` | One or many (`indexes` / `tasks`); optional `[agent: id]` |
 | `start_iteration` / `close_iteration` | ACTIVE/current vs COMPLETE lifecycle |
+| `apply_ops` | **Bulk** — several different mutations in one atomic write; nothing is written if any op fails. `dry_run` to pre-flight. See [docs/BULK.md](docs/BULK.md) |
 | `check_plan` | Structure lint |
 | `show_current_iteration` | **Turn closer** — status view (status, progress count, goal, tasks) to paste at the end of every major turn |
 | `show_plan` | Compact human skim (not a full dump) |

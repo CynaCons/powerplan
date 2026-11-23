@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.11.0 — 2026-11-23
+
+Bulk operations.
+
+- **`apply_ops`** — a new tool that applies a list of *different* mutations in
+  one write. Each op is `{"op": "<tool name>", ...that tool's arguments}`, the
+  14 op names are the existing mutating tools, and they run in order so
+  create → populate → close works in one call. If any op fails **nothing is
+  written**, and the error names the op by position
+  (`failed_op: {"i": 3, "op": "close_iteration"}`), so `PLAN.md` is never left
+  half-updated by a turn-end that went wrong partway.
+- `version` is inherited by ops that address an existing iteration and resolved
+  **once** before the first op, so a `close_iteration` in the batch cannot
+  silently redirect the ops after it. `create_major` / `create_iteration` always
+  need their own; `add_to_backlog` / `append_prose` take none. `agent` is
+  inherited only where the underlying tool accepts one, and never by
+  `update_task`, which would otherwise relabel another agent's work.
+- `dry_run` applies a batch in memory and reports it without writing, raising
+  everything a real call would.
+- Addressing by index in an iteration where an earlier op in the same batch
+  removed or deferred a row is refused, naming both ops: those positions have
+  shifted. Appending never shifts, so index-after-add still works.
+- The result carries `check_plan`'s verdict (`check.ok`, `check.issue_count`),
+  so a batch that leaves the document dirty says so without another call.
+- `write_plan_file` now writes via a temp file and `os.replace`, so a crash
+  mid-write cannot truncate `PLAN.md` — it matters more now that one write
+  carries a whole turn.
+- `append_prose` separates a new block from the section above it, keeping one
+  batch byte-identical to the same ops called one at a time.
+- `_file_lock` is re-entrant, and the MCP `instructions` tell every client to
+  send turn-end bookkeeping as a single `apply_ops` call.
+- Format and rules: [docs/BULK.md](docs/BULK.md). 25 tools.
+
 ## 0.10.0 — 2026-10-29
 
 Miniplan turn report.

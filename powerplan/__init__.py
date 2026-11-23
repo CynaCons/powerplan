@@ -17,8 +17,9 @@ from .plan_model import (
 from .plan_parser import parse_plan, parse_plan_file
 from .plan_writer import write_plan, write_plan_file
 from .discovery import find_plan_md, load_plan
+from .mutations import apply_ops
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 __all__ = [
     "BacklogItem",
     "BacklogSection",
@@ -33,5 +34,6 @@ __all__ = [
     "write_plan_file",
     "find_plan_md",
     "load_plan",
+    "apply_ops",
     "__version__",
 ]

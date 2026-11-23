@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 import threading
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Callable, List, NamedTuple, Optional, Sequence, Union
 
 from .plan_model import (
     BacklogItem,
@@ -36,7 +36,7 @@ from .plan_writer import write_node, write_plan, write_plan_file
 # Powernote / managed format uses em dash with spaces
 _EM = "—"
 
-_file_lock = threading.Lock()
+_file_lock = threading.RLock()
 _BATCH_CAP = 100
 
 
@@ -270,13 +270,29 @@ def set_preamble(plan: Plan, preamble: str) -> Plan:
 
 
 def append_prose(plan: Plan, text: str) -> Plan:
-    """Append opaque prose at top level, above the backlog when one exists."""
+    """
+    Append opaque prose at top level, above the backlog when one exists.
+
+    A new block is separated from the section above it by a blank line, padded
+    onto the new block so existing content is never rewritten (the same rule
+    _pad_header applies to section headers). Without it, prose appended in the
+    same batch as a preceding structural mutation would butt straight against
+    that section — a re-parse between two separate calls supplies the blank
+    line, so this keeps one batch byte-identical to N sequential calls.
+    """
     raw = _nl(text)
     idx = _backlog_index(plan)
     tail = len(plan.blocks) if idx is None else idx
     if tail > 0 and isinstance(plan.blocks[tail - 1], ProseBlock):
         plan.blocks[tail - 1].raw += raw
     else:
+        if tail > 0:
+            nl = _doc_newline(plan)
+            preceding = "".join(
+                write_node(b) for b in plan.blocks[:tail]
+            ).replace("\r\n", "\n")
+            if preceding.strip() and not preceding.endswith("\n\n"):
+                raw = (nl if preceding.endswith("\n") else nl + nl) + raw
         plan.blocks.insert(tail, ProseBlock(raw=raw))
     return plan
 
@@ -907,12 +923,18 @@ def mutate_and_save(
     mutator,
     *,
     allow_create: bool = False,
+    dry_run: bool = False,
 ) -> Plan:
     """
     Load → mutator(plan) → save under file lock.
 
     If the file is missing and ``allow_create`` is False, raise FileNotFoundError
     (callers should use create_plan). When True, start from empty_plan().
+
+    With ``dry_run`` the plan is parsed, mutated and normalized exactly as
+    usual, but never written: the mutated Plan is returned and discarded by the
+    caller. Everything a real call would raise it still raises, so a dry run is
+    an honest pre-flight rather than a weaker check.
     """
     path = Path(plan_path)
     with _file_lock:
@@ -927,7 +949,8 @@ def mutate_and_save(
             )
         mutator(plan)
         normalize_plan(plan)
-        write_plan_file(plan, path)
+        if not dry_run:
+            write_plan_file(plan, path)
         return plan
 
 
@@ -1129,3 +1152,321 @@ def check_plan(plan: Plan) -> dict:
             "total": sum(it.total_count for it in iterations),
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# apply_ops — heterogeneous atomic batches (v0.11.0)
+# ---------------------------------------------------------------------------
+#
+# INVARIANT: an op adapter must only mutate the in-memory Plan it is handed.
+# It must never call save_plan / write_plan_file / mutate_and_save / create_plan,
+# because apply_ops runs the whole list inside one mutate_and_save: a nested
+# write would break all-or-nothing and (before _file_lock became an RLock)
+# deadlock. Every adapter below delegates to a pure in-memory mutation above.
+
+_OPS_CAP = 50
+
+# How an op's "version" key behaves.
+_V_ADDRESSES = "addresses"  # names an existing iteration — inherits the default
+_V_OWN = "own"              # names a NEW section — must always be explicit
+_V_NONE = "none"            # the op has no version at all — key is rejected
+
+
+class _OpSpec(NamedTuple):
+    apply: Callable          # (plan, version, args) -> summary dict
+    required: frozenset      # keys that must be present (minus "op"/"version")
+    optional: frozenset      # keys that may be present
+    version_mode: str
+    inherit_agent: bool      # may the batch-level agent default flow in?
+
+
+def _pair_count(result) -> dict:
+    return {"count": len(result or [])}
+
+
+def _op_add_to_backlog(plan: Plan, version: Optional[str], a: dict) -> dict:
+    """``add_to_backlog`` returns one item or a list; normalize to a count."""
+    result = add_to_backlog(
+        plan,
+        a.get("text"),
+        texts=a.get("texts"),
+        agent=a.get("agent"),
+        checkbox=bool(a.get("checkbox", False)),
+    )
+    return {"count": len(result) if isinstance(result, list) else 1}
+
+
+def _spec_table() -> "dict[str, _OpSpec]":
+    """
+    Op name -> spec. Names are the existing MCP tool names and the keys are the
+    existing tool schemas' properties, so there is nothing new to learn.
+
+    ``inherit_agent`` is False wherever the underlying function has no ``agent``
+    parameter, and deliberately False for update_task: _rewrite_task replaces an
+    existing [agent: x] tag whenever agent is not None, so letting a batch-level
+    default reach it would silently relabel other agents' work. An explicit
+    ``agent`` inside the update_task op still works.
+    """
+    return {
+        "create_major": _OpSpec(
+            lambda p, v, a: (
+                create_major(p, v, a["title"], description=a.get("description")),
+                {"version": v},
+            )[1],
+            frozenset({"title"}), frozenset({"description"}), _V_OWN, False,
+        ),
+        "create_iteration": _OpSpec(
+            lambda p, v, a: (
+                create_iteration(
+                    p, v, a["title"],
+                    major=a.get("major"), goal=a.get("goal"),
+                    status=a.get("status"), description=a.get("description"),
+                ),
+                {"version": v},
+            )[1],
+            frozenset({"title"}),
+            frozenset({"major", "goal", "status", "description"}),
+            _V_OWN, False,
+        ),
+        "set_iteration_goal": _OpSpec(
+            lambda p, v, a: (set_iteration_goal(p, v, a["goal"]), {"version": v})[1],
+            frozenset({"goal"}), frozenset(), _V_ADDRESSES, False,
+        ),
+        "add_task": _OpSpec(
+            lambda p, v, a: (
+                add_task(p, v, a["text"], done=bool(a.get("done", False)),
+                         agent=a.get("agent")),
+                {"version": v, "count": 1},
+            )[1],
+            frozenset({"text"}), frozenset({"done", "agent"}), _V_ADDRESSES, True,
+        ),
+        "add_tasks": _OpSpec(
+            lambda p, v, a: {
+                "version": v,
+                "count": len(add_tasks(
+                    p, v, a["tasks"], done=bool(a.get("done", False)),
+                    agent=a.get("agent"),
+                )),
+            },
+            frozenset({"tasks"}), frozenset({"done", "agent"}), _V_ADDRESSES, True,
+        ),
+        "complete_task": _OpSpec(
+            lambda p, v, a: {
+                "version": v,
+                **_pair_count(complete_task(p, v, **_addr(a), agent=a.get("agent"))),
+            },
+            frozenset(), _ADDR_KEYS | frozenset({"agent"}), _V_ADDRESSES, True,
+        ),
+        "reopen_task": _OpSpec(
+            lambda p, v, a: {
+                "version": v,
+                **_pair_count(reopen_task(p, v, **_addr(a), agent=a.get("agent"))),
+            },
+            frozenset(), _ADDR_KEYS | frozenset({"agent"}), _V_ADDRESSES, True,
+        ),
+        "update_task": _OpSpec(
+            lambda p, v, a: {
+                "version": v,
+                **_pair_count(update_task(
+                    p, v,
+                    text=a.get("text"), task=a.get("task"), index=a.get("index"),
+                    expect=a.get("expect"), changes=a.get("changes"),
+                    agent=a.get("agent"),
+                )),
+            },
+            frozenset(),
+            frozenset({"text", "task", "index", "expect", "changes", "agent"}),
+            _V_ADDRESSES, False,
+        ),
+        "remove_task": _OpSpec(
+            lambda p, v, a: {
+                "version": v, **_pair_count(remove_task(p, v, **_addr(a))),
+            },
+            frozenset(), _ADDR_KEYS, _V_ADDRESSES, False,
+        ),
+        "defer_task": _OpSpec(
+            lambda p, v, a: {
+                "version": v,
+                **_pair_count(defer_task(
+                    p, v, **_addr(a), reason=a.get("reason"), agent=a.get("agent"),
+                )),
+            },
+            frozenset(), _ADDR_KEYS | frozenset({"reason", "agent"}),
+            _V_ADDRESSES, True,
+        ),
+        "add_to_backlog": _OpSpec(
+            _op_add_to_backlog,
+            frozenset(), frozenset({"text", "texts", "agent", "checkbox"}),
+            _V_NONE, True,
+        ),
+        "append_prose": _OpSpec(
+            lambda p, v, a: (append_prose(p, a["text"]), {})[1],
+            frozenset({"text"}), frozenset(), _V_NONE, False,
+        ),
+        "start_iteration": _OpSpec(
+            lambda p, v, a: (start_iteration(p, v), {"version": v})[1],
+            frozenset(), frozenset(), _V_ADDRESSES, False,
+        ),
+        "close_iteration": _OpSpec(
+            lambda p, v, a: (
+                close_iteration(
+                    p, v, force=bool(a.get("force", False)), stamp=a.get("stamp"),
+                ),
+                {"version": v},
+            )[1],
+            frozenset(), frozenset({"force", "stamp"}), _V_ADDRESSES, False,
+        ),
+    }
+
+
+_ADDR_KEYS = frozenset({"task", "index", "expect", "tasks", "indexes"})
+
+# Ops that drop rows, so 1-based indexes after them refer to different tasks.
+_SHIFTING_OPS = frozenset({"remove_task", "defer_task"})
+
+
+def _addr(a: dict) -> dict:
+    """The five addressing keys, omitted when absent (so defaults stay in play)."""
+    return {k: a[k] for k in _ADDR_KEYS if k in a}
+
+
+def _op_names() -> list:
+    return sorted(_spec_table())
+
+
+def apply_ops(
+    plan: Plan,
+    ops: Sequence[dict],
+    *,
+    version: Optional[str] = None,
+    agent: Optional[str] = None,
+) -> dict:
+    """
+    Apply a heterogeneous list of mutating ops to ``plan``, in order.
+
+    Pure in-memory: the caller wraps this in one mutate_and_save, so either every
+    op lands or PLAN.md is left untouched. Ops see the plan as earlier ops left
+    it, which is what makes create-then-populate-then-close work in one call.
+
+    ``version`` is the default for ops that address an existing iteration and
+    omit their own. It is resolved **once, before the first op**, so a
+    start_iteration or close_iteration inside the batch cannot silently move
+    where later ops land. ``agent`` is the default only for ops whose underlying
+    function takes one (see _spec_table).
+
+    Returns a summary dict; raises ValueError (never TypeError/AttributeError)
+    for any malformed op, with the op's 0-based position in the message.
+    """
+    table = _spec_table()
+
+    if not isinstance(ops, (list, tuple)) or not ops:
+        raise ValueError("ops must be a non-empty list of operations")
+    if len(ops) > _OPS_CAP:
+        raise ValueError(f"batch size {len(ops)} exceeds cap of {_OPS_CAP} ops")
+
+    # Resolve the default iteration once, up front.
+    default_version: Optional[str] = None
+    if version is not None and str(version).strip():
+        default_version = str(version).strip()
+    else:
+        cur = plan.current_iteration()
+        if cur is not None:
+            default_version = cur.version
+
+    # ---- shape validation: every op, before the first mutation runs ----
+    prepared: List[tuple[int, str, _OpSpec, Optional[str], dict]] = []
+    for i, raw in enumerate(ops):
+        if not isinstance(raw, dict):
+            raise ValueError(f"ops[{i}] must be an object")
+        name = raw.get("op")
+        if not name or not isinstance(name, str):
+            raise ValueError(f"ops[{i}].op is required (one of: {', '.join(_op_names())})")
+        spec = table.get(name)
+        if spec is None:
+            raise ValueError(
+                f"ops[{i}].op {name!r} is not a known operation "
+                f"(one of: {', '.join(_op_names())})"
+            )
+        args = {k: v for k, v in raw.items() if k != "op"}
+
+        allowed = spec.required | spec.optional
+        if spec.version_mode != _V_NONE:
+            allowed = allowed | frozenset({"version"})
+        unknown = sorted(set(args) - allowed)
+        if unknown:
+            raise ValueError(
+                f"ops[{i}] ({name}): unknown key(s) {', '.join(unknown)}; "
+                f"allowed: {', '.join(sorted(allowed)) or 'none'}"
+            )
+        missing = sorted(spec.required - set(args))
+        if missing:
+            raise ValueError(f"ops[{i}] ({name}): missing required key(s) {', '.join(missing)}")
+
+        own = args.get("version")
+        own = str(own).strip() if own is not None and str(own).strip() else None
+        if spec.version_mode == _V_NONE:
+            resolved = None
+        elif spec.version_mode == _V_OWN:
+            if own is None:
+                raise ValueError(
+                    f"ops[{i}] ({name}): version is required and is never inherited, "
+                    "because it names a new section rather than an existing one"
+                )
+            resolved = own
+        else:
+            resolved = own or default_version
+            if resolved is None:
+                raise ValueError(
+                    f"ops[{i}] ({name}): version is required — pass it on the op, or a "
+                    "batch-level version, or mark an iteration current first"
+                )
+
+        if spec.inherit_agent and agent is not None and "agent" not in args:
+            args["agent"] = agent
+
+        prepared.append((i, name, spec, resolved, args))
+
+    # ---- index-shift guard: only remove/defer renumber rows ----
+    dropped_in: dict = {}
+    for i, name, spec, resolved, args in prepared:
+        if ("index" in args or "indexes" in args) and resolved in dropped_in:
+            raise ValueError(
+                f"ops[{i}] ({name}): addresses {resolved} by index, but ops"
+                f"[{dropped_in[resolved]}] already dropped a task there, so 1-based "
+                "indexes have shifted. Address these by text (task/tasks) instead, "
+                "or order the removals last."
+            )
+        if name in _SHIFTING_OPS:
+            dropped_in.setdefault(resolved, i)
+
+    # ---- apply ----
+    summaries: List[dict] = []
+    for i, name, spec, resolved, args in prepared:
+        try:
+            summary = spec.apply(plan, resolved, args)
+        except (ValueError, KeyError) as exc:
+            raise _OpFailed(i, name, str(exc)) from exc
+        except TypeError as exc:  # a bad arg type reaching a mutation function
+            raise _OpFailed(i, name, f"invalid arguments: {exc}") from exc
+        summaries.append({"i": i, "op": name, **(summary or {})})
+
+    report = check_plan(plan)
+    return {
+        "applied": len(summaries),
+        "ops": summaries,
+        "resolved_version": default_version,
+        "check": {
+            "ok": report.get("ok"),
+            "issue_count": report.get("issue_count"),
+        },
+    }
+
+
+class _OpFailed(ValueError):
+    """A single op raised; carries which one so the caller can locate it."""
+
+    def __init__(self, i: int, op: str, message: str):
+        super().__init__(f"ops[{i}] ({op}): {message}")
+        self.i = i
+        self.op = op
+        self.reason = message

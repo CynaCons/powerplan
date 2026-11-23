@@ -54,6 +54,11 @@ INSTRUCTIONS = """powerplan keeps this project's PLAN.md: majors, iterations and
 - Start of a session: call show_miniplan (or get_current_iteration) to see what is in progress.
 - Register work as tasks before doing it; tick each one with complete_task when it is done and
   verified. Change PLAN.md only through these tools, never by editing the file.
+- When a turn needs several different changes (tick some tasks, add follow-ups, push an item to
+  the backlog, close the iteration), send them as one apply_ops call instead of one tool call
+  each: the whole list is applied in a single write, and if any op fails nothing is written, so
+  PLAN.md is never left half-updated. apply_ops takes [{"op": "<tool name>", ...that tool's
+  arguments}], runs them in order, and accepts dry_run to check a batch before committing it.
 - At the end of every major turn (files changed, tasks ticked or added, a check run, an
   iteration closed), report a miniplan in the chat, then call show_current_iteration and
   paste its output verbatim inside a ``` code block, so the user sees the plan's state at
@@ -77,6 +82,8 @@ _PLAN_PATH_PROP = {
         ),
     }
 }
+_OP_NAMES = mut._op_names()
+_OPS_CAP = mut._OPS_CAP
 _AGENT_PROP = {
     "agent": {
         "type": "string",
@@ -564,6 +571,67 @@ async def list_tools() -> list:
                 },
             },
         ),
+        Tool(
+            name="apply_ops",
+            description=(
+                "Apply several DIFFERENT mutations in one atomic write. Prefer this "
+                "for turn-end bookkeeping (tick, add, backlog, close) and for any "
+                "multi-step edit: one load/normalize/write, and if any op fails "
+                "NOTHING is written, so PLAN.md is never left half-updated. Ops run "
+                "in order and see earlier ops' changes, so create-then-populate-then-"
+                "close works in one call. Each op is {\"op\": \"<tool name>\", ...that "
+                "tool's own arguments}. version is inherited by ops that address an "
+                "existing iteration and omit it (resolved once, before the first op); "
+                "create_major / create_iteration always need their own, and "
+                "add_to_backlog / append_prose take none. Use dry_run to validate a "
+                "batch without writing. Indexes shift after remove_task/defer_task, so "
+                "address by text in batches that also drop rows."
+            ),
+            inputSchema={
+                "type": "object",
+                "required": ["ops"],
+                "properties": {
+                    "ops": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": _OPS_CAP,
+                        "description": (
+                            "Mutations to apply in order. Each item is an object with "
+                            "\"op\" plus that tool's arguments."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "required": ["op"],
+                            "properties": {
+                                "op": {
+                                    "type": "string",
+                                    "enum": _OP_NAMES,
+                                    "description": "Which mutating tool to run.",
+                                }
+                            },
+                            "additionalProperties": True,
+                        },
+                    },
+                    "version": {
+                        "type": "string",
+                        "description": (
+                            "Default iteration for ops that address one and omit it. "
+                            "Resolved once up front; defaults to the current iteration."
+                        ),
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": (
+                            "Validate and apply in memory, report the outcome, write "
+                            "nothing. Raises everything a real call would."
+                        ),
+                    },
+                    **_PLAN_PATH_PROP,
+                    **_AGENT_PROP,
+                },
+            },
+        ),
     ]
 
 
@@ -815,6 +883,55 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list:
                 args,
                 lambda p: mut.close_iteration(
                     p, ver, force=bool(args.get("force", False)), stamp=args.get("stamp")
+                ),
+            )
+
+        if name == "apply_ops":
+            ops = args.get("ops")
+            if not isinstance(ops, list) or not ops:
+                return _err("ops must be a non-empty list of operations")
+            dry = bool(args.get("dry_run", False))
+            path = _resolve_existing(args)
+            holder: dict[str, Any] = {}
+
+            def run(p):
+                holder["r"] = mut.apply_ops(
+                    p, ops, version=args.get("version"), agent=args.get("agent")
+                )
+
+            try:
+                plan = mut.mutate_and_save(
+                    path, run, allow_create=False, dry_run=dry
+                )
+            except ValueError as exc:
+                extra: dict[str, Any] = {}
+                if isinstance(exc, mut._OpFailed):
+                    extra["failed_op"] = {"i": exc.i, "op": exc.op}
+                # Nothing was written: the whole batch is rolled back by never
+                # reaching write_plan_file.
+                return _err(
+                    str(exc),
+                    error_type="ValueError",
+                    written=False,
+                    applied=0,
+                    **extra,
+                )
+
+            result = holder.get("r") or {}
+            applied = result.get("applied", 0)
+            return _ok(
+                path=str(path),
+                dry_run=dry,
+                written=not dry,
+                applied=applied,
+                ops=result.get("ops", []),
+                resolved_version=result.get("resolved_version"),
+                check=result.get("check", {}),
+                iterations=len(plan.all_iterations()),
+                message=(
+                    f"dry run: {applied} op(s) would apply, nothing written"
+                    if dry
+                    else f"applied {applied} op(s) in one write"
                 ),
             )
 

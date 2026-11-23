@@ -7,6 +7,7 @@ source because every node retains its original ``raw`` / ``header_raw`` text.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Union
 
@@ -71,10 +72,23 @@ def write_plan(plan: Plan) -> str:
 
 
 def write_plan_file(plan: Plan, path: Union[str, Path, None] = None) -> Path:
-    """Write plan text to disk using UTF-8 without newline translation."""
+    """
+    Write plan text to disk using UTF-8 without newline translation.
+
+    Written to a sibling temp file and moved into place with ``os.replace``, so
+    a crash or kill mid-write leaves the previous PLAN.md intact rather than a
+    truncated one. This matters most for ``apply_ops``, where a single write
+    carries a whole turn's worth of mutations.
+    """
     target = Path(path) if path is not None else plan.path
     if target is None:
         raise ValueError("No path provided and plan.path is unset")
     text = write_plan(plan)
-    target.write_bytes(text.encode("utf-8"))
+    tmp = target.with_name(f".{target.name}.powerplan.tmp")
+    try:
+        tmp.write_bytes(text.encode("utf-8"))
+        os.replace(tmp, target)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     return target
