@@ -235,6 +235,20 @@ heavy deps.
 - [x] README agent guide + tools row, CHANGELOG 0.10.0, version files bumped to 0.10.0 [agent: claude-opus-5]
 - [x] Release per docs/RELEASING.md: Publish workflow run for 0.10.0; verify PyPI + MCP Registry [agent: claude-opus-5]
 
+## v0.11 — Bulk operations
+> Heterogeneous atomic batches: one call applies a whole turn-end's bookkeeping, so PLAN.md is never half-written.
+
+### v0.11.0 — apply_ops — atomic heterogeneous batches
+**Goal:** One apply_ops tool that runs a list of mutating ops in order inside a single load/normalize/write, all-or-nothing, with dry_run and per-op error locating.
+- [ ] Design apply_ops (atomicity, ordering, inheritance, dry_run, caps) + agent review [agent: claude-opus-5]
+- [ ] mutations.apply_ops: op table reusing existing mutation fns, no duplicated logic [agent: claude-opus-5]
+- [ ] server.py: apply_ops Tool schema + call_tool dispatch with dry_run [agent: claude-opus-5]
+- [ ] Export apply_ops and teach INSTRUCTIONS the single-call turn-end [agent: claude-opus-5]
+- [ ] tests/test_apply_ops.py: atomicity, ordering, dry_run, bad ops, caps, MCP round trip [agent: claude-opus-5]
+- [ ] docs: docs/BULK.md + README tool table + CHANGELOG 0.11.0 [agent: claude-opus-5]
+- [ ] Version bump 0.11.0 across the six release files; full pytest green [agent: claude-opus-5]
+- [ ] Push to main, dispatch Publish (PyPI + MCP Registry), verify both live [agent: claude-opus-5]
+
 ## Backlog
 - Move **Current Status** to top of managed template (powernote convention)
 - Backlog item CRUD: `update_backlog_item` / `remove_backlog_item` (iteration tasks got this in v0.5.1; backlog entries are still append-only)
